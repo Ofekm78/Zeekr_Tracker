@@ -58,7 +58,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.0";
+  const APP_VERSION = "2.1";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -287,8 +287,9 @@
     };
   }
 
-  /** Converts application data to the JSON structure stored in zeekr-data.json. */
+  /** Converts application data to the JSON structure stored in zeekr-data.json, entries ordered by date. */
   function serializeData(data) {
+    data = { ...data, readings: [...data.readings].sort(byDate), publicCharges: [...data.publicCharges].sort(byDate) };
     return {
       app: "zeekr-tracker",
       version: DATA_FORMAT_VERSION,
@@ -404,12 +405,32 @@
     const driven = { km: 0, kwh: 0, cost: 0, days: 0 };
     for (const s of spans) { driven.km += s.km; driven.kwh += s.kwh; driven.cost += s.cost; driven.days += s.days; }
 
-    /** Totals over every period: the basis for money figures. */
-    const spent = { home: 0, public: 0, total: 0, days: 0 };
-    for (const p of periods) { spent.home += p.costHome; spent.public += p.costPublic; spent.days += p.days; }
+    /** Totals over every closed period: the basis for money and energy figures. */
+    const spent = { home: 0, public: 0, total: 0, days: 0, kwh: 0 };
+    for (const p of periods) {
+      spent.home += p.costHome;
+      spent.public += p.costPublic;
+      spent.days += p.days;
+      spent.kwh += p.kwhHome + p.kwhPublic;
+    }
     spent.total = spent.home + spent.public;
 
-    return { periods, spans, driven, spent };
+    /**
+     * Public charges that no closed period covers yet: those dated after the
+     * latest reading (or all of them while there is no reading). They are
+     * reported separately and deliberately kept out of `spent`: the home
+     * energy for the same stretch is still unknown, so adding them would make
+     * the per-day averages and the yearly forecast count cost without days.
+     * They join a period automatically when the next reading is saved.
+     */
+    const lastDate = readings.length ? readings[readings.length - 1].date : null;
+    const pending = { count: 0, kwh: 0, cost: 0 };
+    for (const p of publicCharges) {
+      if (lastDate && p.date <= lastDate) continue;
+      pending.count += 1; pending.kwh += p.kwh; pending.cost += p.cost;
+    }
+
+    return { periods, spans, driven, spent, pending };
   }
 
   /* ======================================================================
@@ -521,7 +542,7 @@
   }
 
   function renderOverview(model) {
-    const { periods, spans, driven, spent } = model;
+    const { periods, spans, driven, spent, pending } = model;
     const efficiency = driven.km ? (driven.kwh / driven.km) * 100 : null;
     const costPerKm = driven.km ? driven.cost / driven.km : null;
     const fuelPerKm = (state.settings.fuelL100 / 100) * state.settings.fuelPrice;
@@ -534,9 +555,16 @@
 
     drawCostChart($("c-cost"), periods.map((p) => ({ label: formatDateShort(p.to), home: p.costHome, pub: p.costPublic })));
     const lastPeriod = periods[periods.length - 1];
-    $("cost-split").textContent = lastPeriod
+    let splitText = lastPeriod
       ? "תקופה אחרונה (עד " + formatDate(lastPeriod.to) + "): " + describeSplit(lastPeriod.costHome, lastPeriod.costPublic) + "."
       : "";
+    if (pending.count) {
+      splitText += (splitText ? " " : "") + (pending.count === 1
+        ? "מאז המדידה האחרונה נרשמה טעינה ציבורית אחת בסך " + formatNumber(pending.cost) + " ₪. היא תיכנס"
+        : "מאז המדידה האחרונה נרשמו " + pending.count + " טעינות ציבוריות בסך " + formatNumber(pending.cost) + " ₪. הן ייכנסו") +
+        " לתקופה הבאה כשתוזן מדידה.";
+    }
+    $("cost-split").textContent = splitText;
 
     drawEfficiencyChart($("c-eff"), spans.map((s) => ({ label: formatDateShort(s.to), value: s.efficiency })), efficiency || 0);
     const trend = $("trend");
@@ -555,10 +583,11 @@
       const yearCost = (spent.total / spent.days) * 365;
       const rows = [
         ["ק״מ שנסעת במעקב", formatNumber(driven.km) + " ק״מ"],
-        ["חשמל שנצרך", formatNumber(driven.kwh) + " קוט״ש"],
+        ["חשמל שנצרך", formatNumber(spent.kwh) + " קוט״ש"],
         ["סה״כ שילמת על חשמל", formatNumber(spent.total) + " ₪"],
         ["מתוכם טעינה ביתית", formatNumber(spent.home) + " ₪"],
         ["מתוכם טעינה ציבורית", formatNumber(spent.public) + " ₪"],
+        ...(pending.count ? [["טעינות ציבוריות מאז המדידה האחרונה", formatNumber(pending.cost) + " ₪"]] : []),
         ["אותם ק״מ בבנזין", formatNumber(driven.km * fuelPerKm) + " ₪"],
         ["עלות לק״מ: חשמל מול בנזין", formatNumber(costPerKm * 100, 0) + " מול " + formatNumber(fuelPerKm * 100, 0) + " אג׳"],
         ["קצב נסיעה", formatNumber(kmPerDay * 30) + " ק״מ בחודש"],
@@ -624,10 +653,17 @@
     }
 
     if (state.publicCharges.length) {
+      // Where each charge is counted: the period that contains it, or why it is in none yet.
+      const countedIn = (charge) => {
+        const period = periods.find((p) => charge.date > p.from && charge.date <= p.to);
+        if (period) return "תקופה עד " + formatDate(period.to);
+        const last = state.readings[state.readings.length - 1];
+        return !last || charge.date > last.date ? "ממתינה למדידה הבאה" : "לפני תחילת המעקב";
+      };
       const rows = state.publicCharges.slice().reverse().map((p) =>
         `<tr><td>${formatDate(p.date)}</td><td>${escapeHtml(p.provider) || "–"}</td><td>${formatNumber(p.kwh, 1)}</td><td>${formatNumber(p.cost, 2)}</td>` +
-        `<td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td><td>${escapeHtml(p.note)}</td><td>${deleteButton("public/" + p.id)}</td></tr>`);
-      $("t-public").innerHTML = "<tr><th>תאריך</th><th>חברה</th><th>קוט״ש</th><th>₪</th><th>₪ לקוט״ש</th><th>הערה</th><th></th></tr>" + rows.join("");
+        `<td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td><td>${countedIn(p)}</td><td>${escapeHtml(p.note)}</td><td>${deleteButton("public/" + p.id)}</td></tr>`);
+      $("t-public").innerHTML = "<tr><th>תאריך</th><th>חברה</th><th>קוט״ש</th><th>₪</th><th>₪ לקוט״ש</th><th>נספרת ב</th><th>הערה</th><th></th></tr>" + rows.join("");
     } else {
       $("t-public").innerHTML = '<tr><td class="empty">עוד לא נרשמו טעינות ציבוריות. מוסיפים בלשונית הזנה.</td></tr>';
     }
@@ -704,11 +740,16 @@
     const costPublic = charges.reduce((sum, p) => sum + p.cost, 0);
     let text = "מאז " + formatDate(previous.date) + " (" + daysBetween(previous.date, date) + " ימים): " +
       formatNumber(kwh, 1) + " קוט״ש בבית. עלות: " + describeSplit(costHome, costPublic);
-    if (odo != null && previous.odo != null) {
-      const km = odo - previous.odo;
+    // Distance and efficiency are measured from the last reading that has an
+    // odometer value, which may be further back than the previous reading.
+    const anchor = [...state.readings].reverse().find((r) => r.date < date && r.odo != null);
+    if (odo != null && anchor) {
+      const km = odo - anchor.odo;
+      const kwhSinceAnchor = meter - anchor.meter +
+        state.publicCharges.filter((p) => p.date > anchor.date && p.date <= date).reduce((sum, p) => sum + p.kwh, 0);
       text += " · " + formatNumber(km) + " ק״מ";
-      const kwhAll = kwh + charges.reduce((sum, p) => sum + p.kwh, 0);
-      if (km > 0) text += " · " + formatNumber((kwhAll / km) * 100, 1) + " קוט״ש ל‑100 ק״מ";
+      if (km > 0) text += " · " + formatNumber((kwhSinceAnchor / km) * 100, 1) + " קוט״ש ל‑100 ק״מ";
+      if (anchor !== previous) text += " (מחושב מאז " + formatDate(anchor.date) + ", המדידה האחרונה עם קילומטראז׳)";
     }
     el.textContent = text;
   }
@@ -731,6 +772,8 @@
     if (next && meter > next.meter) return showMessage("r-msg", "המונה גבוה מהמדידה שאחריה (" + formatNumber(next.meter, 2) + ").");
     const previousWithOdo = [...state.readings].reverse().find((r) => r.date < date && r.odo != null);
     if (odo != null && previousWithOdo && odo < previousWithOdo.odo) return showMessage("r-msg", "הקילומטראז׳ נמוך מהמדידה הקודמת (" + formatNumber(previousWithOdo.odo) + ").");
+    const nextWithOdo = state.readings.find((r) => r.date > date && r.odo != null);
+    if (odo != null && nextWithOdo && odo > nextWithOdo.odo) return showMessage("r-msg", "הקילומטראז׳ גבוה מהמדידה שאחריה (" + formatNumber(nextWithOdo.odo) + ").");
 
     try {
       // A reading is identified by its date, so saving the same date again corrects it.
@@ -1007,11 +1050,17 @@
 
     const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings };
 
-    // The meter only ever goes up; a drop after the merge points at a typo in the file.
+    // The meter and the odometer only ever go up; a drop after the merge points at a typo in the file.
     const warnings = [];
     for (let i = 1; i < data.readings.length; i++) {
       if (data.readings[i].meter < data.readings[i - 1].meter) {
         warnings.push("קריאת המונה ב‑" + formatDate(data.readings[i].date) + " נמוכה מהקריאה שלפניה (" + formatDate(data.readings[i - 1].date) + ").");
+      }
+    }
+    const withOdo = data.readings.filter((r) => r.odo != null);
+    for (let i = 1; i < withOdo.length; i++) {
+      if (withOdo[i].odo < withOdo[i - 1].odo) {
+        warnings.push("הקילומטראז׳ ב‑" + formatDate(withOdo[i].date) + " נמוך מהקילומטראז׳ ב‑" + formatDate(withOdo[i - 1].date) + ".");
       }
     }
     return { data, counts, warnings };
@@ -1209,7 +1258,11 @@
     state.loading = true;
     render();
 
-    const meta = await fetch(FILE_URL + "?select=id,eTag,@microsoft.graph.downloadUrl", { headers: { Authorization: "Bearer " + accessToken } });
+    // cache: "no-store" - the download URL is short-lived, so a cached answer is useless.
+    const meta = await fetch(FILE_URL + "?select=id,eTag,@microsoft.graph.downloadUrl", {
+      headers: { Authorization: "Bearer " + accessToken },
+      cache: "no-store",
+    });
     if (meta.status === 401) { storage.remove(STORE.token); return requireSignIn(); }
     if (meta.status === 404) {
       state.etag = null; // first use: the file does not exist yet
@@ -1217,7 +1270,9 @@
       throw new Error("graph " + meta.status);
     } else {
       const item = await meta.json();
-      const file = await fetch(item["@microsoft.graph.downloadUrl"]);
+      const downloadUrl = item["@microsoft.graph.downloadUrl"];
+      if (!downloadUrl) throw new Error("missing downloadUrl");
+      const file = await fetch(downloadUrl, { cache: "no-store" });
       if (!file.ok) throw new Error("download " + file.status);
       state.etag = item.eTag || null;
       applyData(normalizeData(await file.json()));
