@@ -1,0 +1,254 @@
+<!doctype html>
+<!--
+  Zeekr electricity tracker - page markup.
+
+  This file holds structure and Hebrew text only.
+    styles.css  presentation
+    app.js      behaviour (data model, calculations, OneDrive storage)
+
+  The ?v= suffix on the two links below is a cache-buster: raise it whenever
+  styles.css or app.js changes so browsers do not mix an old file with a new one.
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>מעקב חשמל Zeekr</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css?v=2.2">
+  <script src="app.js?v=2.2" defer></script>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <h1>מעקב חשמל Zeekr</h1>
+    <span class="pill" id="status">טוען נתונים…</span>
+  </header>
+
+  <!-- Shown by app.js only on the trial copy of the page (address ends in /beta/). -->
+  <div class="banner" id="beta-banner" hidden>גרסת ניסוי: הנתונים נשמרים בקובץ zeekr-test.json ולא משפיעים על המדידות האמיתיות.</div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="overview" aria-selected="true">סקירה</button>
+    <button role="tab" data-tab="add" aria-selected="false">הזנה</button>
+    <button role="tab" data-tab="history" aria-selected="false">היסטוריה</button>
+    <button role="tab" data-tab="settings" aria-selected="false">הגדרות</button>
+  </nav>
+
+  <!-- Shown by app.js only when the user has to sign in to OneDrive. -->
+  <div class="panel" id="signin" hidden>
+    <h2>התחברות ל‑OneDrive</h2>
+    <p class="sub" id="signin-text">הנתונים נשמרים בקובץ <span class="file-name">zeekr-data.json</span> בתיקיית האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
+    <button class="btn" id="signin-btn" type="button">התחבר עם חשבון Microsoft</button>
+  </div>
+
+  <!-- ===== Overview ===== -->
+  <section class="view" id="v-overview">
+    <div class="kpis">
+      <div class="kpi"><div class="lab">צריכה ממוצעת</div><div class="num" id="k-eff">–</div><div class="unit">קוט״ש ל‑100 ק״מ</div></div>
+      <div class="kpi"><div class="lab">עלות לק״מ</div><div class="num" id="k-cpk">–</div><div class="unit">אגורות</div></div>
+      <div class="kpi"><div class="lab">עלות חודשית ממוצעת</div><div class="num" id="k-month">–</div><div class="unit">₪ ל‑30 יום</div></div>
+      <div class="kpi"><div class="lab">חיסכון מול בנזין</div><div class="num" id="k-save">–</div><div class="unit">₪ עד היום</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <h2>עלות חשמל לפי תקופה</h2>
+        <div class="legend"><span><i class="home"></i>טעינה ביתית</span><span><i class="public"></i>טעינה ציבורית</span></div>
+      </div>
+      <div class="chart" id="c-cost"></div>
+      <p class="sub" id="cost-split"></p>
+    </div>
+
+    <div class="panel">
+      <div class="row"><h2>צריכה לאורך זמן</h2><span id="trend"></span></div>
+      <p class="sub">קוט״ש ל‑100 ק״מ בכל תקופת מדידה. הקו המקווקו הוא הממוצע הכולל.</p>
+      <div class="chart" id="c-eff"></div>
+    </div>
+
+    <div class="panel">
+      <h2>תחזית שנתית והשוואה לבנזין</h2>
+      <dl class="facts" id="facts"></dl>
+      <p class="sub" id="facts-note"></p>
+    </div>
+
+    <div class="panel" id="season-panel" hidden>
+      <h2>צריכה לפי עונה</h2>
+      <dl class="facts" id="season"></dl>
+      <p class="sub">קיץ: יוני–ספטמבר. חורף: דצמבר–פברואר. התמונה תתבהר אחרי שנה מלאה של מדידות.</p>
+    </div>
+  </section>
+
+  <!-- ===== Entry ===== -->
+  <section class="view" id="v-add" hidden>
+    <div class="seg">
+      <button type="button" id="seg-reading" aria-pressed="true">מדידה חודשית</button>
+      <button type="button" id="seg-public" aria-pressed="false">טעינה ציבורית</button>
+    </div>
+
+    <div class="panel" id="p-reading">
+      <h2>מדידה חודשית</h2>
+      <p class="sub">מה כתוב במונה של העמדה ובמד הק״מ של הרכב. אפשר למדוד יותר מפעם אחת בחודש: כל תאריך נשמר כמדידה נפרדת. המחיר לקוט״ש ממולא מהמדידה הקודמת. אם תשנה אותו, הוא יחול מהמדידה הזו והלאה, והתקופות הקודמות לא ישתנו.</p>
+      <form id="f-reading" novalidate>
+        <label class="full">תאריך<input type="date" id="r-date" required></label>
+        <label>קוט״ש במונה<input type="number" inputmode="decimal" step="any" id="r-meter" placeholder="למשל 4350.2" required></label>
+        <label>קילומטראז׳ ברכב<input type="number" inputmode="numeric" step="any" id="r-odo" placeholder="למשל 56200"></label>
+        <label class="full">מחיר לקוט״ש לפי חשבון החשמל (₪)<input type="number" inputmode="decimal" step="any" id="r-price" placeholder="0.5451" required></label>
+        <div class="hint full" id="r-preview">מלא את השדות כדי לראות את הסיכום מאז המדידה הקודמת.</div>
+        <button class="btn full" type="submit">שמור מדידה</button>
+        <p class="msg full" id="r-msg" role="status"></p>
+      </form>
+    </div>
+
+    <div class="panel" id="p-public" hidden>
+      <h2>טעינה ציבורית</h2>
+      <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית. הטעינה נשמרת כרשומה נפרדת ומתווספת לעלות של התקופה שבה היא נמצאת, בלי לשנות את המדידות הביתיות.</p>
+      <form id="f-public" novalidate>
+        <label>תאריך<input type="date" id="p-date" required></label>
+        <label>חברת הטעינה<input type="text" id="p-provider" maxlength="60" list="providers" placeholder="שם החברה שמפעילה את העמדה"></label>
+        <label>קוט״ש שנטענו<input type="number" inputmode="decimal" step="any" id="p-kwh" placeholder="למשל 32.5" required></label>
+        <label>עלות הטעינה כולה (₪)<input type="number" inputmode="decimal" step="any" id="p-cost" placeholder="למשל 61" required></label>
+        <label class="full">הערה (לא חובה)<input type="text" id="p-note" maxlength="120" placeholder="מיקום העמדה, נסיעה לצפון…"></label>
+        <button class="btn full" type="submit">שמור טעינה</button>
+        <p class="msg full" id="p-msg" role="status"></p>
+      </form>
+      <!-- Filled by app.js with the providers already used, as typing suggestions. -->
+      <datalist id="providers"></datalist>
+    </div>
+  </section>
+
+  <!-- ===== History ===== -->
+  <section class="view" id="v-history" hidden>
+    <div class="panel">
+      <div class="row"><h2>תקופות</h2><button class="btn ghost small" id="export" type="button" hidden>ייצוא ל‑CSV</button></div>
+      <p class="sub">תקופה היא הזמן בין שתי מדידות עוקבות. לכל תקופה מוצגת העלות בפירוק לטעינה ביתית ולטעינה ציבורית.</p>
+      <div class="scroll"><table id="t-periods"></table></div>
+    </div>
+    <div class="panel"><h2>מדידות</h2><div class="scroll"><table id="t-readings"></table></div></div>
+    <div class="panel"><h2>טעינות ציבוריות</h2><div class="scroll"><table id="t-public"></table></div></div>
+  </section>
+
+  <!-- ===== Settings ===== -->
+  <section class="view" id="v-settings" hidden>
+    <div class="panel">
+      <h2>רכב בנזין להשוואה</h2>
+      <p class="sub">הערכים האלה הם הנחות. עדכן אותם לפי הרכב שהיית נוהג בו אחרת.</p>
+      <form id="f-fuel" novalidate>
+        <label>מחיר ליטר בנזין (₪)<input type="number" inputmode="decimal" step="any" id="s-price" required></label>
+        <label>צריכת דלק (ליטר ל‑100 ק״מ)<input type="number" inputmode="decimal" step="any" id="s-l100" required></label>
+        <button class="btn full" type="submit">שמור</button>
+        <p class="msg full" id="s-msg" role="status"></p>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>הנתונים שלך</h2>
+      <p class="sub">הכול נשמר בקובץ אחד, <span class="file-name">zeekr-data.json</span>, בתיקיית האפליקציה ב‑OneDrive שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
+      <div class="row start">
+        <button class="btn ghost" id="dl-json" type="button">הורד גיבוי (JSON)</button>
+        <button class="btn ghost danger" id="signout" type="button">התנתק</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>ייבוא מקובץ</h2>
+      <p class="sub">הייבוא ממזג את הקובץ עם הנתונים הקיימים ולא מוחק דבר. לפני השמירה מוצג סיכום של מה שיתווסף ומה שיתעדכן, ורק אחרי אישור הנתונים נשמרים.</p>
+      <div class="row start">
+        <label class="btn ghost">בחר קובץ לייבוא<input type="file" id="imp-file" accept=".json,.csv,application/json,text/csv" hidden></label>
+        <button class="btn ghost" id="dl-template" type="button">הורד קובץ CSV לדוגמה</button>
+      </div>
+
+      <!-- Import preview: filled by app.js after a file is chosen. -->
+      <div class="hint" id="imp-box" hidden>
+        <div id="imp-text"></div>
+        <div class="row start">
+          <button class="btn small" id="imp-go" type="button">אשר ייבוא</button>
+          <button class="btn ghost small" id="imp-cancel" type="button">בטל</button>
+        </div>
+      </div>
+      <p class="msg" id="d-msg" role="status"></p>
+
+      <details class="guide">
+        <summary>איך צריך להיראות קובץ ייבוא</summary>
+        <div class="body">
+          <p class="sub">הייבוא מקבל שני סוגי קבצים: CSV (נוח לעריכה באקסל) ו‑JSON (הפורמט של קובץ הגיבוי). הדרך הקלה היא להוריד את קובץ ה‑CSV לדוגמה, למלא אותו באקסל ולשמור.</p>
+
+          <h3>איך הייבוא משתלב בנתונים הקיימים</h3>
+          <ul>
+            <li>מדידה מזוהה לפי התאריך שלה. תאריך שכבר קיים: הערכים מהקובץ מחליפים את הקיימים. תאריך חדש: המדידה מתווספת, גם אם יש כבר מדידה אחרת באותו חודש.</li>
+            <li>טעינה ציבורית מזוהה לפי המזהה שלה, ואם אין מזהה לפי השילוב של תאריך, קוט״ש ועלות. טעינה קיימת מתעדכנת (חברה, הערה), וכל טעינה אחרת מתווספת.</li>
+            <li>טעינה ציבורית אף פעם לא משנה מדידה, ומדידה אף פעם לא משנה טעינה ציבורית.</li>
+            <li>רשומות שלא מופיעות בקובץ נשארות כמו שהן.</li>
+            <li>שורה לא תקינה מדולגת ומדווחת בסיכום עם מספר השורה והסיבה. שאר הקובץ מיובא.</li>
+          </ul>
+
+          <h3>קובץ CSV</h3>
+          <ul>
+            <li>השורה הראשונה היא שורת כותרות. סדר העמודות לא משנה, ועמודות שלא מופיעות ברשימה מתעלמים מהן.</li>
+            <li>כל שורה אחריה היא מדידה אחת או טעינה ציבורית אחת.</li>
+            <li>קידוד UTF‑8. מפריד פסיק, נקודה‑פסיק או טאב.</li>
+            <li>תאריך: <code>2026-10-01</code> או <code>01/10/2026</code> או <code>1.10.2026</code> (יום לפני חודש).</li>
+            <li>מספרים: נקודה עשרונית, בלי יחידות. למשל <code>4350.2</code>.</li>
+          </ul>
+          <div class="scroll">
+            <table>
+              <tr><th>כותרת העמודה</th><th>שם חלופי</th><th>במדידה</th><th>בטעינה ציבורית</th><th>תוכן</th></tr>
+              <tr><td>סוג</td><td><code>type</code></td><td>מדידה</td><td>טעינה ציבורית</td><td>אם העמודה חסרה, שורה עם מונה היא מדידה ושורה עם קוט״ש היא טעינה ציבורית</td></tr>
+              <tr><td>תאריך</td><td><code>date</code></td><td>חובה</td><td>חובה</td><td>תאריך המדידה או הטעינה</td></tr>
+              <tr><td>מונה קוט״ש</td><td><code>meter</code></td><td>חובה</td><td>ריק</td><td>המספר המצטבר שמופיע במונה העמדה הביתית</td></tr>
+              <tr><td>קילומטראז׳</td><td><code>odo</code></td><td>רשות</td><td>ריק</td><td>מד הק״מ של הרכב. בלעדיו הצריכה מחושבת יחד עם התקופה הבאה</td></tr>
+              <tr><td>מחיר לקוט״ש</td><td><code>price</code></td><td>רשות</td><td>ריק</td><td>מחיר החשמל הביתי בשקלים לתקופה שמסתיימת במדידה. ריק: נלקח המחיר מהמדידה הקודמת</td></tr>
+              <tr><td>קוט״ש</td><td><code>kwh</code></td><td>ריק</td><td>חובה</td><td>כמה קוט״ש נטענו בטעינה</td></tr>
+              <tr><td>עלות</td><td><code>cost</code></td><td>ריק</td><td>חובה</td><td>הסכום הכולל ששולם על הטעינה, בשקלים</td></tr>
+              <tr><td>חברה</td><td><code>provider</code></td><td>ריק</td><td>רשות</td><td>החברה שבה בוצעה הטעינה, טקסט חופשי</td></tr>
+              <tr><td>הערה</td><td><code>note</code></td><td>ריק</td><td>רשות</td><td>טקסט חופשי</td></tr>
+              <tr><td>מזהה</td><td><code>id</code></td><td>ריק</td><td>רשות</td><td>מופיע בקובץ שהאפליקציה מייצאת. בשורה חדשה משאירים ריק</td></tr>
+            </table>
+          </div>
+          <p class="sub">דוגמה לקובץ CSV עם שתי מדידות באותו חודש וטעינה ציבורית אחת:</p>
+<pre>סוג,תאריך,מונה קוט״ש,קילומטראז׳,מחיר לקוט״ש,קוט״ש,עלות,חברה,הערה,מזהה
+מדידה,2026-10-01,4350.2,56200,0.5451,,,,,
+מדידה,2026-10-18,4702.9,57480,0.5451,,,,,
+טעינה ציבורית,2026-10-12,,,,32.5,61,שם החברה,נסיעה לצפון,</pre>
+
+          <h3>קובץ JSON</h3>
+          <ul>
+            <li>אובייקט אחד עם הרשימה <code>readings</code> (מדידות) והרשימה <code>public</code> (טעינות ציבוריות). מספיקה אחת מהן.</li>
+            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code> ו‑<code>price</code> רשות (אפשר <code>null</code>).</li>
+            <li>בכל טעינה ציבורית: <code>date</code>, <code>kwh</code> ו‑<code>cost</code> חובה, <code>provider</code>, <code>note</code> ו‑<code>id</code> רשות.</li>
+            <li><code>settings</code> רשות. אם הוא מופיע, הגדרות רכב הבנזין להשוואה מתעדכנות לפיו.</li>
+            <li>שדות אחרים, כמו <code>app</code>, <code>version</code> ו‑<code>updated</code>, לא נדרשים בייבוא.</li>
+          </ul>
+<pre>{
+  "readings": [
+    { "date": "2026-10-01", "meter": 4350.2, "odo": 56200, "price": 0.5451 },
+    { "date": "2026-10-18", "meter": 4702.9, "odo": null, "price": null }
+  ],
+  "public": [
+    { "date": "2026-10-12", "kwh": 32.5, "cost": 61,
+      "provider": "שם החברה", "note": "נסיעה לצפון" }
+  ],
+  "settings": { "fuelPrice": 7.3, "fuelL100": 7.5 }
+}</pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- Trial copy only. -->
+    <div class="panel" id="beta-panel" hidden>
+      <h2>גרסת ניסוי</h2>
+      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות.</p>
+      <div class="row start">
+        <button class="btn ghost danger" id="test-reset" type="button">רוקן את קובץ הבדיקות</button>
+      </div>
+      <p class="msg" id="t-msg" role="status"></p>
+    </div>
+
+    <p class="sub">גרסה <span id="app-version"></span> · <a id="other-version" href="beta/">לגרסת הניסוי</a></p>
+  </section>
+</div>
+
+</body>
+</html>
