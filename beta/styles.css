@@ -28,7 +28,7 @@
   --public: #b96a0a;        /* public charging */
   --good: #1c7c4a;
   --good-soft: #e0f3e8;
-  --warn: #a85a00;
+  --warn: #8a4a00;        /* dark enough for 4.5:1 on --warn-soft */
   --warn-soft: #fbecd6;
   --bad: #b3261e;
   --display: "Rubik", "Heebo", system-ui, sans-serif;

@@ -58,7 +58,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.3";
+  const APP_VERSION = "2.4";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -93,7 +93,8 @@
    * localStorage / sessionStorage keys. Both copies share one origin, so they
    * share the sign-in token (sign in once) but keep separate offline caches.
    */
-  const STORE = { token: "zk-tok", cache: IS_BETA ? "zk-data-test" : "zk-data", tab: "zk-tab", pkce: "zk-pkce" };
+  const CACHE_KEYS = { main: "zk-data", beta: "zk-data-test" };
+  const STORE = { token: "zk-tok", cache: IS_BETA ? CACHE_KEYS.beta : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce" };
 
   const DATA_FORMAT_VERSION = 2;
   const DEFAULT_SETTINGS = { fuelPrice: 7.3, fuelL100: 7.5 };
@@ -1223,7 +1224,10 @@
       pendingImport = null;
       $("imp-box").hidden = true;
       const changed = plan.counts.readings.added + plan.counts.readings.updated + plan.counts.publicCharges.added + plan.counts.publicCharges.updated;
-      setImportMessage("הייבוא הושלם: " + changed + " רשומות נוספו או עודכנו ונשמרו ב‑OneDrive.", "ok");
+      const summary = changed === 0 ? "לא היו שינויים לשמור."
+        : changed === 1 ? "רשומה אחת נוספה או עודכנה ונשמרה ב‑OneDrive."
+        : changed + " רשומות נוספו או עודכנו ונשמרו ב‑OneDrive.";
+      setImportMessage("הייבוא הושלם: " + summary, "ok");
     } catch (err) {
       setImportMessage(describeSaveError(err), "err");
     }
@@ -1405,9 +1409,14 @@
     return "השמירה נכשלה. בדוק את החיבור לאינטרנט ונסה שוב.";
   }
 
+  /**
+   * Signs this browser out. The token is shared by the main and the trial
+   * copy, so both offline caches are removed: no readings stay on the device.
+   */
   function signOut() {
     storage.remove(STORE.token);
-    storage.remove(STORE.cache);
+    storage.remove(CACHE_KEYS.main);
+    storage.remove(CACHE_KEYS.beta);
     location.reload();
   }
 
