@@ -16,8 +16,8 @@
   <meta name="robots" content="noindex">
   <title>מעקב חשמל Zeekr</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.1">
-  <script src="app.js?v=2.1" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.4">
+  <script src="app.js?v=2.4" defer></script>
 </head>
 <body>
 
@@ -26,6 +26,9 @@
     <h1>מעקב חשמל Zeekr</h1>
     <span class="pill" id="status">טוען נתונים…</span>
   </header>
+
+  <!-- Shown by app.js only on the trial copy of the page (address ends in /beta/). -->
+  <div class="banner" id="beta-banner" hidden>גרסת ניסוי: הנתונים נשמרים בקובץ zeekr-test.json ולא משפיעים על המדידות האמיתיות.</div>
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="overview" aria-selected="true">סקירה</button>
@@ -37,7 +40,7 @@
   <!-- Shown by app.js only when the user has to sign in to OneDrive. -->
   <div class="panel" id="signin" hidden>
     <h2>התחברות ל‑OneDrive</h2>
-    <p class="sub" id="signin-text">הנתונים נשמרים בקובץ zeekr-data.json בתיקיית האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
+    <p class="sub" id="signin-text">הנתונים נשמרים בקובץ <span class="file-name">zeekr-data.json</span> בתיקיית האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
     <button class="btn" id="signin-btn" type="button">התחבר עם חשבון Microsoft</button>
   </div>
 
@@ -142,7 +145,7 @@
 
     <div class="panel">
       <h2>הנתונים שלך</h2>
-      <p class="sub">הכול נשמר בקובץ אחד, zeekr-data.json, בתיקיית האפליקציה ב‑OneDrive שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
+      <p class="sub">הכול נשמר בקובץ אחד, <span class="file-name">zeekr-data.json</span>, בתיקיית האפליקציה ב‑OneDrive שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
       <div class="row start">
         <button class="btn ghost" id="dl-json" type="button">הורד גיבוי (JSON)</button>
         <button class="btn ghost danger" id="signout" type="button">התנתק</button>
@@ -233,7 +236,18 @@
       </details>
     </div>
 
-    <p class="sub">גרסה <span id="app-version"></span></p>
+    <!-- Trial copy only. -->
+    <div class="panel" id="beta-panel" hidden>
+      <h2>גרסת ניסוי</h2>
+      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות. אפשר להתחיל מעותק של הנתונים האמיתיים: ההעתקה רק קוראת את הקובץ האמיתי ולא משנה אותו.</p>
+      <div class="row start">
+        <button class="btn ghost" id="test-copy" type="button">העתק את הנתונים האמיתיים לקובץ הבדיקות</button>
+        <button class="btn ghost danger" id="test-reset" type="button">רוקן את קובץ הבדיקות</button>
+      </div>
+      <p class="msg" id="t-msg" role="status"></p>
+    </div>
+
+    <p class="sub">גרסה <span id="app-version"></span> · <a id="other-version" href="beta/">לגרסת הניסוי</a></p>
   </section>
 </div>
 
