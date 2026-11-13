@@ -58,7 +58,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.2";
+  const APP_VERSION = "2.3";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -81,10 +81,13 @@
    * address alone, so it cannot be switched by mistake.
    */
   const IS_BETA = location.pathname.includes("/beta/");
-  const DATA_FILE_NAME = IS_BETA ? "zeekr-test.json" : "zeekr-data.json";
+  const REAL_FILE_NAME = "zeekr-data.json";
+  const DATA_FILE_NAME = IS_BETA ? "zeekr-test.json" : REAL_FILE_NAME;
 
-  /** Microsoft Graph address of the data file inside the app folder. */
-  const FILE_URL = "https://graph.microsoft.com/v1.0/me/drive/special/approot:/" + DATA_FILE_NAME;
+  /** Microsoft Graph address of a file inside the app folder (OneDrive/Apps/Zeekr Tracker). */
+  const APP_FOLDER_URL = "https://graph.microsoft.com/v1.0/me/drive/special/approot:/";
+  /** The file this copy of the app reads and writes. */
+  const FILE_URL = APP_FOLDER_URL + DATA_FILE_NAME;
 
   /**
    * localStorage / sessionStorage keys. Both copies share one origin, so they
@@ -838,6 +841,38 @@
     }
   }
 
+  /**
+   * Trial version only: replaces the test file with a fresh copy of the real
+   * readings, so features are tried on realistic data. The real file is only
+   * read here, never written.
+   */
+  async function onClickCopyRealData(event) {
+    const button = event.currentTarget;
+    const label = "העתק את הנתונים האמיתיים לקובץ הבדיקות";
+    if (!IS_BETA) return;
+    if (!state.connected) return showMessage("t-msg", NOT_CONNECTED);
+    if (!button.dataset.armed) {
+      button.dataset.armed = "1";
+      button.textContent = "זה יחליף את נתוני הבדיקה. להעתיק?";
+      setTimeout(() => { delete button.dataset.armed; button.textContent = label; }, 3500);
+      return;
+    }
+    delete button.dataset.armed;
+    button.textContent = label;
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) { requireSignIn(); throw authError(); }
+      const real = await readAppFile(APP_FOLDER_URL + REAL_FILE_NAME, accessToken);
+      if (real.status === 404) return showMessage("t-msg", "קובץ הנתונים האמיתי עוד לא קיים ב‑OneDrive.");
+      if (real.status !== 200) throw authError();
+      const copy = normalizeData(real.content);
+      await mutate((draft) => { Object.assign(draft, copy); });
+      showMessage("t-msg", "הועתקו " + copy.readings.length + " מדידות ו‑" + copy.publicCharges.length + " טעינות ציבוריות מהקובץ האמיתי.", true);
+    } catch (err) {
+      showMessage("t-msg", err && (err.auth || err.conflict) ? describeSaveError(err) : "ההעתקה נכשלה. בדוק את החיבור ונסה שוב.");
+    }
+  }
+
   /** Empties the test file. Only reachable in the trial version; asks for a second click. */
   async function onClickResetTestData(event) {
     const button = event.currentTarget;
@@ -1286,36 +1321,41 @@
   }
 
   /**
-   * Loads the data file from OneDrive.
+   * Reads one JSON file from the app folder.
    * Graph's /content endpoint redirects in a way browsers refuse, so the file
    * is fetched in two steps: its metadata (with a pre-authenticated download
    * URL), then the URL itself.
+   * @returns {Promise<{status:number, etag:(string|null), content:(object|null)}>}
+   *   status 200 with the parsed content, or 401 / 404 with no content.
+   * @throws on any other failure, so a broken read is never mistaken for an empty file.
    */
+  async function readAppFile(fileUrl, accessToken) {
+    // cache: "no-store" - the download URL is short-lived, so a cached answer is useless.
+    const meta = await fetch(fileUrl + "?select=id,eTag,@microsoft.graph.downloadUrl", {
+      headers: { Authorization: "Bearer " + accessToken },
+      cache: "no-store",
+    });
+    if (meta.status === 401 || meta.status === 404) return { status: meta.status, etag: null, content: null };
+    if (!meta.ok) throw new Error("graph " + meta.status);
+    const item = await meta.json();
+    const downloadUrl = item["@microsoft.graph.downloadUrl"];
+    if (!downloadUrl) throw new Error("missing downloadUrl");
+    const file = await fetch(downloadUrl, { cache: "no-store" });
+    if (!file.ok) throw new Error("download " + file.status);
+    return { status: 200, etag: item.eTag || null, content: await file.json() };
+  }
+
+  /** Loads this copy's data file from OneDrive into the page. */
   async function loadFromOneDrive() {
     const accessToken = await getAccessToken();
     if (!accessToken) return requireSignIn();
     state.loading = true;
     render();
 
-    // cache: "no-store" - the download URL is short-lived, so a cached answer is useless.
-    const meta = await fetch(FILE_URL + "?select=id,eTag,@microsoft.graph.downloadUrl", {
-      headers: { Authorization: "Bearer " + accessToken },
-      cache: "no-store",
-    });
-    if (meta.status === 401) { storage.remove(STORE.token); return requireSignIn(); }
-    if (meta.status === 404) {
-      state.etag = null; // first use: the file does not exist yet
-    } else if (!meta.ok) {
-      throw new Error("graph " + meta.status);
-    } else {
-      const item = await meta.json();
-      const downloadUrl = item["@microsoft.graph.downloadUrl"];
-      if (!downloadUrl) throw new Error("missing downloadUrl");
-      const file = await fetch(downloadUrl, { cache: "no-store" });
-      if (!file.ok) throw new Error("download " + file.status);
-      state.etag = item.eTag || null;
-      applyData(normalizeData(await file.json()));
-    }
+    const file = await readAppFile(FILE_URL, accessToken);
+    if (file.status === 401) { storage.remove(STORE.token); return requireSignIn(); }
+    state.etag = file.etag; // null on first use, when the file does not exist yet
+    if (file.status === 200) applyData(normalizeData(file.content));
     state.connected = true;
     state.loading = false;
     $("signin").hidden = true;
@@ -1417,6 +1457,7 @@
     }));
     $("signout").addEventListener("click", signOut);
     $("test-reset").addEventListener("click", onClickResetTestData);
+    $("test-copy").addEventListener("click", onClickCopyRealData);
 
     let resizeTimer;
     window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });

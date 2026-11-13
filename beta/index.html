@@ -16,8 +16,8 @@
   <meta name="robots" content="noindex">
   <title>מעקב חשמל Zeekr</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.2">
-  <script src="app.js?v=2.2" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.3">
+  <script src="app.js?v=2.3" defer></script>
 </head>
 <body>
 
@@ -239,8 +239,9 @@
     <!-- Trial copy only. -->
     <div class="panel" id="beta-panel" hidden>
       <h2>גרסת ניסוי</h2>
-      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות.</p>
+      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות. אפשר להתחיל מעותק של הנתונים האמיתיים: ההעתקה רק קוראת את הקובץ האמיתי ולא משנה אותו.</p>
       <div class="row start">
+        <button class="btn ghost" id="test-copy" type="button">העתק את הנתונים האמיתיים לקובץ הבדיקות</button>
         <button class="btn ghost danger" id="test-reset" type="button">רוקן את קובץ הבדיקות</button>
       </div>
       <p class="msg" id="t-msg" role="status"></p>
