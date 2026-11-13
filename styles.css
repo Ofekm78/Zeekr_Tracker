@@ -1,0 +1,205 @@
+/*
+ * Zeekr electricity tracker - presentation.
+ *
+ * Layout: one narrow right-to-left column. A status line, four key figures,
+ * charts, then tabs for entry, history and settings.
+ *
+ * Sections
+ *   1. Design tokens (light and dark)
+ *   2. Base elements
+ *   3. Page frame: header, tabs, panels
+ *   4. Overview: key figures, charts, fact lists
+ *   5. Forms and buttons
+ *   6. Tables
+ *   7. Import guide
+ */
+
+/* ---------- 1. Design tokens ---------- */
+
+:root {
+  --bg: #f2f5f7;
+  --surface: #ffffff;
+  --line: #d9e0e6;
+  --fg: #14212b;
+  --muted: #5b6b78;
+  --accent: #0b7285;        /* home charging, primary actions */
+  --accent-fg: #ffffff;
+  --accent-soft: #dff1f4;
+  --public: #b96a0a;        /* public charging */
+  --good: #1c7c4a;
+  --good-soft: #e0f3e8;
+  --warn: #a85a00;
+  --warn-soft: #fbecd6;
+  --bad: #b3261e;
+  --display: "Rubik", "Heebo", system-ui, sans-serif;
+  --body: "Heebo", "Rubik", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+
+/* Dark values are repeated twice on purpose: once for the system preference
+   and once for an explicit data-theme="dark" override. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171d;
+    --surface: #18232b;
+    --line: #2b3944;
+    --fg: #e7eef2;
+    --muted: #93a4b0;
+    --accent: #4cc3d6;
+    --accent-fg: #06222a;
+    --accent-soft: #143640;
+    --public: #e8a548;
+    --good: #5fd093;
+    --good-soft: #153526;
+    --warn: #f0b35c;
+    --warn-soft: #3a2a10;
+    --bad: #ff8a80;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f171d;
+  --surface: #18232b;
+  --line: #2b3944;
+  --fg: #e7eef2;
+  --muted: #93a4b0;
+  --accent: #4cc3d6;
+  --accent-fg: #06222a;
+  --accent-soft: #143640;
+  --public: #e8a548;
+  --good: #5fd093;
+  --good-soft: #153526;
+  --warn: #f0b35c;
+  --warn-soft: #3a2a10;
+  --bad: #ff8a80;
+  color-scheme: dark;
+}
+
+/* ---------- 2. Base elements ---------- */
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  direction: rtl;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+
+h1 { font-family: var(--display); font-size: 1.6rem; font-weight: 700; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-size: 1.1rem; font-weight: 600; margin: 0; }
+h3 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible,
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 3. Page frame ---------- */
+
+.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+
+.head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+
+.pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.85rem; font-weight: 500; background: var(--accent-soft); color: var(--fg); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+
+.tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px; }
+.tabs button { flex: 1; border: 0; background: none; color: var(--muted); font: 500 0.95rem var(--body); padding: 9px 4px; border-radius: 7px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
+
+.view { display: flex; flex-direction: column; gap: 20px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.row.start { justify-content: flex-start; }
+
+.sub { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.empty { color: var(--muted); text-align: center; padding: 18px 8px; }
+.span-all { grid-column: 1 / -1; }
+
+/* ---------- 4. Overview ---------- */
+
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 620px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.kpi .lab { font-size: 0.82rem; color: var(--muted); }
+.kpi .num { font-family: var(--display); font-size: 1.7rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi .unit { font-size: 0.82rem; color: var(--muted); }
+
+/* Charts are drawn left-to-right even though the page is right-to-left. */
+.chart { width: 100%; direction: ltr; }
+.chart svg { display: block; width: 100%; height: auto; }
+
+.legend { display: flex; gap: 14px; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 5px; }
+.legend .home { background: var(--accent); }
+.legend .public { background: var(--public); }
+
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin: 0; }
+@media (max-width: 520px) { .facts { grid-template-columns: 1fr; } }
+.facts div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-block: 5px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; text-align: left; }
+
+/* ---------- 5. Forms and buttons ---------- */
+
+form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+form .full { grid-column: 1 / -1; }
+@media (max-width: 480px) { form { grid-template-columns: 1fr; } }
+
+label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 0; }
+
+input { font: inherit; font-size: 1.05rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0; }
+
+.btn { font: 600 1rem var(--body); border: 0; border-radius: 8px; padding: 11px 16px; background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+.btn.ghost { background: none; color: var(--accent); border: 1px solid var(--line); font-weight: 500; }
+.btn.small { padding: 4px 10px; font-size: 0.85rem; }
+.btn.danger { color: var(--bad); }
+/* A file input dressed as a button: the label is the visible control. */
+label.btn { flex-direction: row; font-size: 1rem; }
+
+.msg { font-size: 0.9rem; min-height: 1.4em; margin: 0; }
+.msg.err { color: var(--bad); }
+.msg.ok { color: var(--good); }
+
+.hint { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; }
+.hint .row { margin-top: 10px; }
+
+.seg { display: flex; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: none; color: var(--fg); font: 500 0.92rem var(--body); padding: 7px 12px; border-radius: 99px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+/* ---------- 6. Tables ---------- */
+
+.scroll { overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
+td.footnote { white-space: normal; color: var(--muted); }
+
+/* ---------- 7. Import guide ---------- */
+
+.guide { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.guide summary { cursor: pointer; font-weight: 500; color: var(--accent); }
+.guide[open] summary { margin-bottom: 12px; }
+.guide .body { display: flex; flex-direction: column; gap: 12px; font-size: 0.92rem; }
+.guide ul { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; }
+.guide td, .guide th { white-space: normal; vertical-align: top; }
+.guide code { font-family: var(--mono); font-size: 0.85rem; background: var(--bg); border-radius: 4px; padding: 1px 5px; direction: ltr; unicode-bidi: isolate; }
+/* File samples are shown left-to-right exactly as they appear in a text editor. */
+.guide pre { margin: 0; direction: ltr; text-align: left; font-family: var(--mono); font-size: 0.8rem; line-height: 1.5; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }

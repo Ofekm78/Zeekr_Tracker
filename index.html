@@ -1,109 +1,47 @@
 <!doctype html>
+<!--
+  Zeekr electricity tracker - page markup.
+
+  This file holds structure and Hebrew text only.
+    styles.css  presentation
+    app.js      behaviour (data model, calculations, OneDrive storage)
+
+  The ?v= suffix on the two links below is a cache-buster: raise it whenever
+  styles.css or app.js changes so browsers do not mix an old file with a new one.
+-->
 <html lang="he" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex">
-<title>מעקב חשמל Zeekr</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-<style>
-/* Layout: one narrow RTL column. Status line, four big figures, charts, then tabs for entry, history and settings. */
-:root{
-  --bg:#f2f5f7; --surface:#ffffff; --line:#d9e0e6; --fg:#14212b; --muted:#5b6b78;
-  --accent:#0b7285; --accent-fg:#ffffff; --accent-soft:#dff1f4;
-  --public:#b96a0a; --good:#1c7c4a; --good-soft:#e0f3e8; --warn:#a85a00; --warn-soft:#fbecd6; --bad:#b3261e;
-  --display:"Rubik","Heebo",system-ui,sans-serif; --body:"Heebo","Rubik",system-ui,sans-serif;
-  --r:10px;
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f171d; --surface:#18232b; --line:#2b3944; --fg:#e7eef2; --muted:#93a4b0;
-  --accent:#4cc3d6; --accent-fg:#06222a; --accent-soft:#143640;
-  --public:#e8a548; --good:#5fd093; --good-soft:#153526; --warn:#f0b35c; --warn-soft:#3a2a10; --bad:#ff8a80;
-  color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0f171d; --surface:#18232b; --line:#2b3944; --fg:#e7eef2; --muted:#93a4b0;
-  --accent:#4cc3d6; --accent-fg:#06222a; --accent-soft:#143640;
-  --public:#e8a548; --good:#5fd093; --good-soft:#153526; --warn:#f0b35c; --warn-soft:#3a2a10; --bad:#ff8a80;
-  color-scheme:dark}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5;direction:rtl;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
-.wrap{max-width:760px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
-h1{font-family:var(--display);font-size:1.6rem;font-weight:700;margin:0;text-wrap:balance}
-h2{font-family:var(--display);font-size:1.1rem;font-weight:600;margin:0}
-.head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
-.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.85rem;font-weight:500;background:var(--accent-soft);color:var(--fg)}
-.pill.warn{background:var(--warn-soft);color:var(--warn)}
-.pill.good{background:var(--good-soft);color:var(--good)}
-.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:4px}
-.tabs button{flex:1;border:0;background:none;color:var(--muted);font:500 .95rem var(--body);padding:9px 4px;border-radius:7px;cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-fg)}
-button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.view{display:flex;flex-direction:column;gap:20px}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media (max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-width:0}
-.kpi .lab{font-size:.82rem;color:var(--muted)}
-.kpi .num{font-family:var(--display);font-size:1.7rem;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
-.kpi .unit{font-size:.82rem;color:var(--muted)}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
-.sub{color:var(--muted);font-size:.9rem;margin:0}
-.chart{width:100%;direction:ltr}
-.chart svg{display:block;width:100%;height:auto}
-.legend{display:flex;gap:14px;font-size:.85rem;color:var(--muted);flex-wrap:wrap}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:5px}
-.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin:0}
-@media (max-width:520px){.facts{grid-template-columns:1fr}}
-.facts div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-block:5px}
-.facts dt{color:var(--muted)} .facts dd{margin:0;font-weight:500;font-variant-numeric:tabular-nums;text-align:left}
-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-form .full{grid-column:1/-1}
-@media (max-width:480px){form{grid-template-columns:1fr}}
-label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--muted);min-width:0}
-input{font:inherit;font-size:1.05rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
-.btn{font:600 1rem var(--body);border:0;border-radius:8px;padding:11px 16px;background:var(--accent);color:var(--accent-fg);cursor:pointer}
-.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line);font-weight:500}
-.btn.small{padding:4px 10px;font-size:.85rem}
-.btn.danger{color:var(--bad)}
-.msg{font-size:.9rem;min-height:1.4em;margin:0}
-.msg.err{color:var(--bad)} .msg.ok{color:var(--good)}
-.hint{background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.92rem}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
-th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--muted);font-weight:500;font-size:.82rem}
-.empty{color:var(--muted);text-align:center;padding:18px 8px}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.seg{display:flex;gap:6px}
-.seg button{border:1px solid var(--line);background:none;color:var(--fg);font:500 .92rem var(--body);padding:7px 12px;border-radius:99px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>מעקב חשמל Zeekr</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css?v=2.0">
+  <script src="app.js?v=2.0" defer></script>
 </head>
 <body>
 
-
 <div class="wrap">
-  <div class="head">
+  <header class="head">
     <h1>מעקב חשמל Zeekr</h1>
     <span class="pill" id="status">טוען נתונים…</span>
-  </div>
+  </header>
 
-  <div class="tabs" role="tablist">
+  <nav class="tabs" role="tablist">
     <button role="tab" data-tab="overview" aria-selected="true">סקירה</button>
     <button role="tab" data-tab="add" aria-selected="false">הזנה</button>
     <button role="tab" data-tab="history" aria-selected="false">היסטוריה</button>
     <button role="tab" data-tab="settings" aria-selected="false">הגדרות</button>
-  </div>
+  </nav>
 
+  <!-- Shown by app.js only when the user has to sign in to OneDrive. -->
   <div class="panel" id="signin" hidden>
     <h2>התחברות ל‑OneDrive</h2>
     <p class="sub" id="signin-text">הנתונים נשמרים בקובץ zeekr-data.json בתיקיית האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
     <button class="btn" id="signin-btn" type="button">התחבר עם חשבון Microsoft</button>
   </div>
 
-  <!-- OVERVIEW -->
+  <!-- ===== Overview ===== -->
   <section class="view" id="v-overview">
     <div class="kpis">
       <div class="kpi"><div class="lab">צריכה ממוצעת</div><div class="num" id="k-eff">–</div><div class="unit">קוט״ש ל‑100 ק״מ</div></div>
@@ -113,9 +51,12 @@ th{color:var(--muted);font-weight:500;font-size:.82rem}
     </div>
 
     <div class="panel">
-      <div class="row"><h2>עלות חשמל לפי תקופה</h2>
-        <div class="legend"><span><i style="background:var(--accent)"></i>בית</span><span><i style="background:var(--public)"></i>ציבורי</span></div></div>
+      <div class="row">
+        <h2>עלות חשמל לפי תקופה</h2>
+        <div class="legend"><span><i class="home"></i>טעינה ביתית</span><span><i class="public"></i>טעינה ציבורית</span></div>
+      </div>
       <div class="chart" id="c-cost"></div>
+      <p class="sub" id="cost-split"></p>
     </div>
 
     <div class="panel">
@@ -137,7 +78,7 @@ th{color:var(--muted);font-weight:500;font-size:.82rem}
     </div>
   </section>
 
-  <!-- ADD -->
+  <!-- ===== Entry ===== -->
   <section class="view" id="v-add" hidden>
     <div class="seg">
       <button type="button" id="seg-reading" aria-pressed="true">מדידה חודשית</button>
@@ -146,7 +87,7 @@ th{color:var(--muted);font-weight:500;font-size:.82rem}
 
     <div class="panel" id="p-reading">
       <h2>מדידה חודשית</h2>
-      <p class="sub">פעם בחודש: מה כתוב במונה של העמדה ובמד הק״מ של הרכב. המחיר לקוט״ש ממולא מהחודש הקודם. אם תשנה אותו, הוא יחול מהמדידה הזו והלאה, והחודשים הקודמים לא ישתנו.</p>
+      <p class="sub">מה כתוב במונה של העמדה ובמד הק״מ של הרכב. אפשר למדוד יותר מפעם אחת בחודש: כל תאריך נשמר כמדידה נפרדת. המחיר לקוט״ש ממולא מהמדידה הקודמת. אם תשנה אותו, הוא יחול מהמדידה הזו והלאה, והתקופות הקודמות לא ישתנו.</p>
       <form id="f-reading" novalidate>
         <label class="full">תאריך<input type="date" id="r-date" required></label>
         <label>קוט״ש במונה<input type="number" inputmode="decimal" step="any" id="r-meter" placeholder="למשל 4350.2" required></label>
@@ -160,30 +101,33 @@ th{color:var(--muted);font-weight:500;font-size:.82rem}
 
     <div class="panel" id="p-public" hidden>
       <h2>טעינה ציבורית</h2>
-      <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית, כדי שהעלות והצריכה יהיו מדויקות.</p>
+      <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית. הטעינה נשמרת כרשומה נפרדת ומתווספת לעלות של התקופה שבה היא נמצאת, בלי לשנות את המדידות הביתיות.</p>
       <form id="f-public" novalidate>
-        <label class="full">תאריך<input type="date" id="p-date" required></label>
+        <label>תאריך<input type="date" id="p-date" required></label>
+        <label>חברת הטעינה<input type="text" id="p-provider" maxlength="60" list="providers" placeholder="שם החברה שמפעילה את העמדה"></label>
         <label>קוט״ש שנטענו<input type="number" inputmode="decimal" step="any" id="p-kwh" placeholder="למשל 32.5" required></label>
-        <label>סכום ששולם (₪)<input type="number" inputmode="decimal" step="any" id="p-cost" placeholder="למשל 61" required></label>
-        <label class="full">הערה (לא חובה)<input type="text" id="p-note" maxlength="80" placeholder="שם העמדה, נסיעה לצפון…"></label>
+        <label>עלות הטעינה כולה (₪)<input type="number" inputmode="decimal" step="any" id="p-cost" placeholder="למשל 61" required></label>
+        <label class="full">הערה (לא חובה)<input type="text" id="p-note" maxlength="120" placeholder="מיקום העמדה, נסיעה לצפון…"></label>
         <button class="btn full" type="submit">שמור טעינה</button>
         <p class="msg full" id="p-msg" role="status"></p>
       </form>
+      <!-- Filled by app.js with the providers already used, as typing suggestions. -->
+      <datalist id="providers"></datalist>
     </div>
   </section>
 
-  <!-- HISTORY -->
+  <!-- ===== History ===== -->
   <section class="view" id="v-history" hidden>
     <div class="panel">
-      <div class="row"><h2>תקופות</h2><button class="btn ghost small" id="export" hidden>ייצוא ל‑CSV</button></div>
+      <div class="row"><h2>תקופות</h2><button class="btn ghost small" id="export" type="button" hidden>ייצוא ל‑CSV</button></div>
+      <p class="sub">תקופה היא הזמן בין שתי מדידות עוקבות. לכל תקופה מוצגת העלות בפירוק לטעינה ביתית ולטעינה ציבורית.</p>
       <div class="scroll"><table id="t-periods"></table></div>
-      <p class="msg" id="x-msg" role="status"></p>
     </div>
     <div class="panel"><h2>מדידות</h2><div class="scroll"><table id="t-readings"></table></div></div>
     <div class="panel"><h2>טעינות ציבוריות</h2><div class="scroll"><table id="t-public"></table></div></div>
   </section>
 
-  <!-- SETTINGS -->
+  <!-- ===== Settings ===== -->
   <section class="view" id="v-settings" hidden>
     <div class="panel">
       <h2>רכב בנזין להשוואה</h2>
@@ -195,303 +139,103 @@ th{color:var(--muted);font-weight:500;font-size:.82rem}
         <p class="msg full" id="s-msg" role="status"></p>
       </form>
     </div>
+
     <div class="panel">
       <h2>הנתונים שלך</h2>
       <p class="sub">הכול נשמר בקובץ אחד, zeekr-data.json, בתיקיית האפליקציה ב‑OneDrive שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
-      <div class="row" style="justify-content:flex-start">
-        <button class="btn ghost" id="dl-json" type="button">הורד עותק (JSON)</button>
-        <label class="btn ghost" style="flex-direction:row;cursor:pointer;color:var(--accent);font-size:1rem">ייבוא מקובץ<input type="file" id="imp-file" accept=".json,application/json" hidden></label>
+      <div class="row start">
+        <button class="btn ghost" id="dl-json" type="button">הורד גיבוי (JSON)</button>
         <button class="btn ghost danger" id="signout" type="button">התנתק</button>
       </div>
-      <div class="hint" id="imp-box" hidden><span id="imp-text"></span> <button class="btn small" id="imp-go" type="button">החלף את הנתונים</button></div>
-      <p class="msg" id="d-msg" role="status"></p>
     </div>
+
+    <div class="panel">
+      <h2>ייבוא מקובץ</h2>
+      <p class="sub">הייבוא ממזג את הקובץ עם הנתונים הקיימים ולא מוחק דבר. לפני השמירה מוצג סיכום של מה שיתווסף ומה שיתעדכן, ורק אחרי אישור הנתונים נשמרים.</p>
+      <div class="row start">
+        <label class="btn ghost">בחר קובץ לייבוא<input type="file" id="imp-file" accept=".json,.csv,application/json,text/csv" hidden></label>
+        <button class="btn ghost" id="dl-template" type="button">הורד קובץ CSV לדוגמה</button>
+      </div>
+
+      <!-- Import preview: filled by app.js after a file is chosen. -->
+      <div class="hint" id="imp-box" hidden>
+        <div id="imp-text"></div>
+        <div class="row start">
+          <button class="btn small" id="imp-go" type="button">אשר ייבוא</button>
+          <button class="btn ghost small" id="imp-cancel" type="button">בטל</button>
+        </div>
+      </div>
+      <p class="msg" id="d-msg" role="status"></p>
+
+      <details class="guide">
+        <summary>איך צריך להיראות קובץ ייבוא</summary>
+        <div class="body">
+          <p class="sub">הייבוא מקבל שני סוגי קבצים: CSV (נוח לעריכה באקסל) ו‑JSON (הפורמט של קובץ הגיבוי). הדרך הקלה היא להוריד את קובץ ה‑CSV לדוגמה, למלא אותו באקסל ולשמור.</p>
+
+          <h3>איך הייבוא משתלב בנתונים הקיימים</h3>
+          <ul>
+            <li>מדידה מזוהה לפי התאריך שלה. תאריך שכבר קיים: הערכים מהקובץ מחליפים את הקיימים. תאריך חדש: המדידה מתווספת, גם אם יש כבר מדידה אחרת באותו חודש.</li>
+            <li>טעינה ציבורית מזוהה לפי המזהה שלה, ואם אין מזהה לפי השילוב של תאריך, קוט״ש ועלות. טעינה קיימת מתעדכנת (חברה, הערה), וכל טעינה אחרת מתווספת.</li>
+            <li>טעינה ציבורית אף פעם לא משנה מדידה, ומדידה אף פעם לא משנה טעינה ציבורית.</li>
+            <li>רשומות שלא מופיעות בקובץ נשארות כמו שהן.</li>
+            <li>שורה לא תקינה מדולגת ומדווחת בסיכום עם מספר השורה והסיבה. שאר הקובץ מיובא.</li>
+          </ul>
+
+          <h3>קובץ CSV</h3>
+          <ul>
+            <li>השורה הראשונה היא שורת כותרות. סדר העמודות לא משנה, ועמודות שלא מופיעות ברשימה מתעלמים מהן.</li>
+            <li>כל שורה אחריה היא מדידה אחת או טעינה ציבורית אחת.</li>
+            <li>קידוד UTF‑8. מפריד פסיק, נקודה‑פסיק או טאב.</li>
+            <li>תאריך: <code>2026-10-01</code> או <code>01/10/2026</code> או <code>1.10.2026</code> (יום לפני חודש).</li>
+            <li>מספרים: נקודה עשרונית, בלי יחידות. למשל <code>4350.2</code>.</li>
+          </ul>
+          <div class="scroll">
+            <table>
+              <tr><th>כותרת העמודה</th><th>שם חלופי</th><th>במדידה</th><th>בטעינה ציבורית</th><th>תוכן</th></tr>
+              <tr><td>סוג</td><td><code>type</code></td><td>מדידה</td><td>טעינה ציבורית</td><td>אם העמודה חסרה, שורה עם מונה היא מדידה ושורה עם קוט״ש היא טעינה ציבורית</td></tr>
+              <tr><td>תאריך</td><td><code>date</code></td><td>חובה</td><td>חובה</td><td>תאריך המדידה או הטעינה</td></tr>
+              <tr><td>מונה קוט״ש</td><td><code>meter</code></td><td>חובה</td><td>ריק</td><td>המספר המצטבר שמופיע במונה העמדה הביתית</td></tr>
+              <tr><td>קילומטראז׳</td><td><code>odo</code></td><td>רשות</td><td>ריק</td><td>מד הק״מ של הרכב. בלעדיו הצריכה מחושבת יחד עם התקופה הבאה</td></tr>
+              <tr><td>מחיר לקוט״ש</td><td><code>price</code></td><td>רשות</td><td>ריק</td><td>מחיר החשמל הביתי בשקלים לתקופה שמסתיימת במדידה. ריק: נלקח המחיר מהמדידה הקודמת</td></tr>
+              <tr><td>קוט״ש</td><td><code>kwh</code></td><td>ריק</td><td>חובה</td><td>כמה קוט״ש נטענו בטעינה</td></tr>
+              <tr><td>עלות</td><td><code>cost</code></td><td>ריק</td><td>חובה</td><td>הסכום הכולל ששולם על הטעינה, בשקלים</td></tr>
+              <tr><td>חברה</td><td><code>provider</code></td><td>ריק</td><td>רשות</td><td>החברה שבה בוצעה הטעינה, טקסט חופשי</td></tr>
+              <tr><td>הערה</td><td><code>note</code></td><td>ריק</td><td>רשות</td><td>טקסט חופשי</td></tr>
+              <tr><td>מזהה</td><td><code>id</code></td><td>ריק</td><td>רשות</td><td>מופיע בקובץ שהאפליקציה מייצאת. בשורה חדשה משאירים ריק</td></tr>
+            </table>
+          </div>
+          <p class="sub">דוגמה לקובץ CSV עם שתי מדידות באותו חודש וטעינה ציבורית אחת:</p>
+<pre>סוג,תאריך,מונה קוט״ש,קילומטראז׳,מחיר לקוט״ש,קוט״ש,עלות,חברה,הערה,מזהה
+מדידה,2026-10-01,4350.2,56200,0.5451,,,,,
+מדידה,2026-10-18,4702.9,57480,0.5451,,,,,
+טעינה ציבורית,2026-10-12,,,,32.5,61,שם החברה,נסיעה לצפון,</pre>
+
+          <h3>קובץ JSON</h3>
+          <ul>
+            <li>אובייקט אחד עם הרשימה <code>readings</code> (מדידות) והרשימה <code>public</code> (טעינות ציבוריות). מספיקה אחת מהן.</li>
+            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code> ו‑<code>price</code> רשות (אפשר <code>null</code>).</li>
+            <li>בכל טעינה ציבורית: <code>date</code>, <code>kwh</code> ו‑<code>cost</code> חובה, <code>provider</code>, <code>note</code> ו‑<code>id</code> רשות.</li>
+            <li><code>settings</code> רשות. אם הוא מופיע, הגדרות רכב הבנזין להשוואה מתעדכנות לפיו.</li>
+            <li>שדות אחרים, כמו <code>app</code>, <code>version</code> ו‑<code>updated</code>, לא נדרשים בייבוא.</li>
+          </ul>
+<pre>{
+  "readings": [
+    { "date": "2026-10-01", "meter": 4350.2, "odo": 56200, "price": 0.5451 },
+    { "date": "2026-10-18", "meter": 4702.9, "odo": null, "price": null }
+  ],
+  "public": [
+    { "date": "2026-10-12", "kwh": 32.5, "cost": 61,
+      "provider": "שם החברה", "note": "נסיעה לצפון" }
+  ],
+  "settings": { "fuelPrice": 7.3, "fuelL100": 7.5 }
+}</pre>
+        </div>
+      </details>
+    </div>
+
+    <p class="sub">גרסה <span id="app-version"></span></p>
   </section>
 </div>
-
-<script>
-(function(){
-const $=id=>document.getElementById(id);
-const S={readings:[],pub:[],tariffs:[],settings:{fuelPrice:7.3,fuelL100:7.5},db:false,loading:false,etag:null};
-const DAY=864e5;
-const d2t=s=>Date.parse(s+"T00:00:00Z");
-const days=(a,b)=>Math.round((d2t(b)-d2t(a))/DAY);
-const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-const fd=s=>{const[y,m,d]=s.split("-");return (+d)+"."+(+m)+"."+y.slice(2)};
-const fds=s=>{const[,m,d]=s.split("-");return (+d)+"."+(+m)};
-const n=(v,dec=0)=>v==null||!isFinite(v)?"–":v.toLocaleString("he-IL",{minimumFractionDigits:dec,maximumFractionDigits:dec});
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const num=id=>{const v=$(id).value.trim();return v===""?null:Number(v)};
-function say(id,text,ok){const e=$(id);e.textContent=text;e.className="msg full "+(ok?"ok":"err")}
-function lastPrice(){for(let i=S.readings.length-1;i>=0;i--){if(S.readings[i].price>0)return S.readings[i].price}return tariffAt(today())||""}
-function tariffAt(date){let p=null;for(const t of S.tariffs){if(t.from<=date)p=t.price}return p??(S.tariffs[0]?.price??0)}
-
-/* ---------- model ---------- */
-function model(){
-  const R=S.readings,periods=[];
-  for(let i=1;i<R.length;i++){
-    const a=R[i-1],b=R[i];
-    const pubs=S.pub.filter(p=>p.date>a.date&&p.date<=b.date);
-    const kwhHome=b.meter-a.meter,kwhPub=pubs.reduce((s,p)=>s+p.kwh,0);
-    const price=b.price>0?b.price:tariffAt(b.date);
-    periods.push({from:a.date,to:b.date,days:days(a.date,b.date),kwhHome,kwhPub,price,
-      costHome:kwhHome*price,costPub:pubs.reduce((s,p)=>s+p.cost,0),
-      km:(a.odo!=null&&b.odo!=null)?b.odo-a.odo:null,eff:null,merged:0});
-  }
-  // efficiency spans: merge periods until a reading with an odometer value
-  const spans=[];let anchor=R.findIndex(r=>r.odo!=null);
-  if(anchor>=0){let kwh=0,cost=0,cnt=0;
-    for(let i=anchor+1;i<R.length;i++){const p=periods[i-1];kwh+=p.kwhHome+p.kwhPub;cost+=p.costHome+p.costPub;cnt++;
-      if(R[i].odo!=null){const km=R[i].odo-R[anchor].odo;
-        if(km>0){const sp={from:R[anchor].date,to:R[i].date,days:days(R[anchor].date,R[i].date),km,kwh,cost,eff:kwh/km*100,n:cnt};spans.push(sp);p.eff=sp.eff;p.merged=cnt;if(cnt>1)p.kmSpan=km}
-        anchor=i;kwh=0;cost=0;cnt=0}}}
-  const T={km:0,kwh:0,cost:0,days:0};spans.forEach(s=>{T.km+=s.km;T.kwh+=s.kwh;T.cost+=s.cost;T.days+=s.days});
-  const A={cost:0,days:0};periods.forEach(p=>{A.cost+=p.costHome+p.costPub;A.days+=p.days});
-  return{periods,spans,T,A};
-}
-
-/* ---------- charts ---------- */
-function svgEl(w,h){return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" font-family="Heebo,sans-serif">`}
-function barChart(el,items){
-  if(!items.length){el.innerHTML='<p class="empty">יופיע כאן אחרי שתי מדידות.</p>';return}
-  items=items.slice(-14);
-  const w=Math.max(280,el.clientWidth||600),h=210,L=38,B=26,Tp=18,pw=w-L-8,ph=h-B-Tp;
-  const max=Math.max(...items.map(i=>i.a+i.b))*1.12||1,step=pw/items.length,bw=Math.min(46,step*.62);
-  let s=svgEl(w,h);
-  for(let g=0;g<=3;g++){const v=max*g/3,y=Tp+ph-ph*g/3;
-    s+=`<line x1="${L}" x2="${w-8}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v)}</text>`}
-  items.forEach((it,i)=>{const x=L+step*i+(step-bw)/2,ha=ph*it.a/max,hb=ph*it.b/max,y0=Tp+ph;
-    s+=`<rect x="${x}" y="${y0-ha}" width="${bw}" height="${ha}" rx="3" fill="var(--accent)"/>`;
-    if(hb>0)s+=`<rect x="${x}" y="${y0-ha-hb}" width="${bw}" height="${hb}" rx="3" fill="var(--public)"/>`;
-    if(step>34)s+=`<text x="${x+bw/2}" y="${y0-ha-hb-5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--fg)">${Math.round(it.a+it.b)}</text>`;
-    s+=`<text x="${x+bw/2}" y="${h-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`});
-  el.innerHTML=s+"</svg>";
-}
-function lineChart(el,pts,avg){
-  if(!pts.length){el.innerHTML='<p class="empty">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>';return}
-  pts=pts.slice(-14);
-  const w=Math.max(280,el.clientWidth||600),h=210,L=38,B=26,Tp=22,pw=w-L-24,ph=h-B-Tp;
-  const vs=pts.map(p=>p.v).concat(avg);let lo=Math.floor(Math.min(...vs)-2),hi=Math.ceil(Math.max(...vs)+2);if(lo<0)lo=0;
-  const X=i=>L+12+(pts.length>1?pw*i/(pts.length-1):pw/2),Y=v=>Tp+ph-ph*(v-lo)/(hi-lo);
-  let s=svgEl(w,h);
-  for(let g=0;g<=3;g++){const v=lo+(hi-lo)*g/3,y=Y(v);
-    s+=`<line x1="${L}" x2="${w-8}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${n(v,0)}</text>`}
-  s+=`<line x1="${L}" x2="${w-8}" y1="${Y(avg)}" y2="${Y(avg)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-  if(pts.length>1){const path=pts.map((p,i)=>(i?"L":"M")+X(i)+" "+Y(p.v)).join(" ");
-    s+=`<path d="${path} L${X(pts.length-1)} ${Tp+ph} L${X(0)} ${Tp+ph} Z" fill="var(--accent-soft)" stroke="none"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`}
-  pts.forEach((p,i)=>{const last=i===pts.length-1;
-    s+=`<circle cx="${X(i)}" cy="${Y(p.v)}" r="${last?5.5:4}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
-    s+=`<text x="${X(i)}" y="${Y(p.v)-10}" text-anchor="middle" font-size="11" font-weight="${last?700:500}" fill="var(--fg)">${n(p.v,1)}</text>`;
-    s+=`<text x="${X(i)}" y="${h-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`});
-  el.innerHTML=s+"</svg>";
-}
-
-/* ---------- render ---------- */
-let M=null;
-function render(){
-  M=model();const{periods,spans,T,A}=M,R=S.readings,st=$("status");
-  if(!S.db&&!R.length){st.textContent=S.loading?"טוען נתונים מ‑OneDrive…":"לא מחובר ל‑OneDrive";st.className="pill"+(S.loading?"":" warn")}
-  else if(!R.length){st.textContent=S.loading?"טוען נתונים…":"עוד אין מדידות. התחל בלשונית הזנה";st.className="pill"}
-  else{const last=R[R.length-1],ago=days(last.date,today());
-    st.textContent="מדידה אחרונה "+fd(last.date)+" · לפני "+ago+" ימים";st.className="pill"+(ago>35?" warn":"")}
-  const eff=T.km?T.kwh/T.km*100:null,cpk=T.km?T.cost/T.km:null;
-  const fuelPerKm=S.settings.fuelL100/100*S.settings.fuelPrice,save=T.km?T.km*fuelPerKm-T.cost:null;
-  $("k-eff").textContent=n(eff,1);$("k-cpk").textContent=n(cpk==null?null:cpk*100,1);
-  $("k-month").textContent=n(A.days?A.cost/A.days*30:null,0);$("k-save").textContent=n(save,0);
-  barChart($("c-cost"),periods.map(p=>({label:fds(p.to),a:p.costHome,b:p.costPub})));
-  lineChart($("c-eff"),spans.map(s=>({label:fds(s.to),v:s.eff})),eff||0);
-  const tr=$("trend");tr.textContent="";tr.className="";
-  if(spans.length>1){const l=spans[spans.length-1].eff,d=(l-eff)/eff*100;
-    tr.className="pill "+(d<=0?"good":"warn");tr.textContent="תקופה אחרונה: "+n(Math.abs(d),0)+"% "+(d<=0?"מתחת לממוצע":"מעל הממוצע")}
-  const F=$("facts");
-  if(T.km){const kmDay=T.km/T.days,yrKm=kmDay*365,yrCost=A.cost/A.days*365;
-    F.innerHTML=[["ק״מ שנסעת במעקב",n(T.km)+" ק״מ"],["חשמל שנצרך",n(T.kwh)+" קוט״ש"],["סה״כ שילמת על חשמל",n(T.cost)+" ₪"],
-      ["אותם ק״מ בבנזין",n(T.km*fuelPerKm)+" ₪"],["עלות לק״מ: חשמל מול בנזין",n(cpk*100,0)+" מול "+n(fuelPerKm*100,0)+" אג׳"],
-      ["קצב נסיעה",n(kmDay*30)+" ק״מ בחודש"],["תחזית ק״מ לשנה",n(yrKm)+" ק״מ"],["תחזית עלות חשמל לשנה",n(yrCost)+" ₪"],
-      ["תחזית חיסכון לשנה",n(yrKm*fuelPerKm-yrKm*cpk)+" ₪"]].map(r=>`<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join("");
-    $("facts-note").textContent="ההשוואה מניחה רכב בנזין שצורך "+n(S.settings.fuelL100,1)+" ליטר ל‑100 ק״מ ובנזין ב‑"+n(S.settings.fuelPrice,2)+" ₪ לליטר. אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
-  }else{F.innerHTML='<p class="empty" style="grid-column:1/-1">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>';$("facts-note").textContent=""}
-  // seasons
-  const se={"קיץ":[0,0],"חורף":[0,0],"עונות מעבר":[0,0]};
-  spans.forEach(s=>{const m=new Date(d2t(s.from)+(d2t(s.to)-d2t(s.from))/2).getUTCMonth()+1;
-    const k=m>=6&&m<=9?"קיץ":(m==12||m<=2)?"חורף":"עונות מעבר";se[k][0]+=s.kwh;se[k][1]+=s.km});
-  const sk=Object.keys(se).filter(k=>se[k][1]>0);$("season-panel").hidden=sk.length<2;
-  $("season").innerHTML=sk.map(k=>`<div><dt>${k}</dt><dd>${n(se[k][0]/se[k][1]*100,1)} קוט״ש ל‑100 ק״מ</dd></div>`).join("");
-  // history tables
-  $("t-periods").innerHTML=periods.length?"<tr><th>עד תאריך</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th><th>עלות ₪</th><th>קוט״ש/100</th><th>₪ ל‑30 יום</th></tr>"+
-    periods.slice().reverse().map(p=>`<tr><td>${fd(p.to)}</td><td>${p.days}</td><td>${p.km!=null?n(p.km):p.kmSpan?n(p.kmSpan)+" *":"חסר"}</td><td>${n(p.kwhHome,1)}</td><td>${p.kwhPub?n(p.kwhPub,1):"–"}</td><td>${n(p.costHome+p.costPub)}</td><td>${p.eff!=null?n(p.eff,1)+(p.merged>1?" *":""):"–"}</td><td>${n(p.days?(p.costHome+p.costPub)/p.days*30:null)}</td></tr>`).join("")+
-    (periods.some(p=>p.merged>1)?'<tr><td colspan="8" style="white-space:normal;color:var(--muted)">* חסר קילומטראז׳ במדידה קודמת, ולכן הק״מ והצריכה מחושבים על כמה תקופות יחד.</td></tr>':"")
-    :'<tr><td class="empty">עוד אין שתי מדידות להשוואה.</td></tr>';
-  $("t-readings").innerHTML=R.length?"<tr><th>תאריך</th><th>מונה קוט״ש</th><th>קילומטראז׳</th><th>₪ לקוט״ש</th><th></th></tr>"+
-    R.slice().reverse().map(r=>`<tr><td>${fd(r.date)}</td><td>${n(r.meter,2)}</td><td>${r.odo!=null?n(r.odo):"חסר"}</td><td>${n(r.price>0?r.price:tariffAt(r.date),4)}</td><td><button class="btn ghost small danger" data-del="readings/${esc(r.id)}">מחק</button></td></tr>`).join("")
-    :'<tr><td class="empty">עוד אין מדידות.</td></tr>';
-  $("t-public").innerHTML=S.pub.length?"<tr><th>תאריך</th><th>קוט״ש</th><th>₪</th><th>₪ לקוט״ש</th><th>הערה</th><th></th></tr>"+
-    S.pub.slice().reverse().map(p=>`<tr><td>${fd(p.date)}</td><td>${n(p.kwh,1)}</td><td>${n(p.cost,2)}</td><td>${n(p.kwh?p.cost/p.kwh:null,2)}</td><td>${esc(p.note)}</td><td><button class="btn ghost small danger" data-del="public/${esc(p.id)}">מחק</button></td></tr>`).join("")
-    :'<tr><td class="empty">עוד לא נרשמו טעינות ציבוריות. מוסיפים בלשונית הזנה.</td></tr>';
-  const rp=$("r-price");if(!rp.dataset.touched&&document.activeElement!==rp)rp.value=lastPrice();
-  if(document.activeElement!==$("s-price"))$("s-price").value=S.settings.fuelPrice;
-  if(document.activeElement!==$("s-l100"))$("s-l100").value=S.settings.fuelL100;
-  $("export").hidden=!R.length;
-  preview();
-}
-
-/* ---------- reading form ---------- */
-function neighbours(date){let prev=null,next=null;for(const r of S.readings){if(r.date<date)prev=r;else if(r.date>date&&!next)next=r}return{prev,next}}
-function preview(){
-  const date=$("r-date").value,meter=num("r-meter"),odo=num("r-odo"),price=num("r-price"),el=$("r-preview");
-  if(!date||meter==null){el.textContent="מלא את השדות כדי לראות את הסיכום מאז המדידה הקודמת.";return}
-  const{prev}=neighbours(date);if(!prev){el.textContent="זו תהיה המדידה הראשונה, נקודת ההתחלה של המעקב.";return}
-  const kwh=meter-prev.meter,dd=days(prev.date,date),cost=kwh*(price>0?price:tariffAt(date));
-  let t="מאז "+fd(prev.date)+" ("+dd+" ימים): "+n(kwh,1)+" קוט״ש בבית, בערך "+n(cost)+" ₪";
-  if(odo!=null&&prev.odo!=null){const km=odo-prev.odo;t+=" · "+n(km)+" ק״מ";if(km>0)t+=" · "+n(kwh/km*100,1)+" קוט״ש ל‑100 ק״מ (לפני טעינות ציבוריות)"}
-  el.textContent=t;
-}
-["r-date","r-meter","r-odo","r-price"].forEach(id=>$(id).addEventListener("input",preview));
-$("r-price").addEventListener("input",()=>{$("r-price").dataset.touched="1"});
-$("f-reading").addEventListener("submit",async e=>{e.preventDefault();
-  const date=$("r-date").value,meter=num("r-meter"),odo=num("r-odo"),price=num("r-price");
-  if(!S.db)return say("r-msg","צריך להתחבר ל‑OneDrive קודם.");
-  if(!date||meter==null||!isFinite(meter))return say("r-msg","צריך תאריך וקריאת מונה.");
-  if(date>today())return say("r-msg","התאריך בעתיד.");
-  if(!(price>0)||price>5)return say("r-msg","צריך מחיר לקוט״ש בשקלים, למשל 0.5451.");
-  const{prev,next}=neighbours(date);
-  if(prev&&meter<prev.meter)return say("r-msg","המונה נמוך מהמדידה הקודמת ("+n(prev.meter,2)+"). בדוק את המספר.");
-  if(next&&meter>next.meter)return say("r-msg","המונה גבוה מהמדידה שאחריה ("+n(next.meter,2)+").");
-  const po=[...S.readings].reverse().find(r=>r.date<date&&r.odo!=null);
-  if(odo!=null&&po&&odo<po.odo)return say("r-msg","הקילומטראז׳ נמוך מהמדידה הקודמת ("+n(po.odo)+").");
-  try{await mutate(d=>{d.readings=d.readings.filter(r=>r.date!==date);d.readings.push({date,meter,odo,price})});delete $("r-price").dataset.touched;
-    say("r-msg","המדידה נשמרה."+(odo==null?" בלי קילומטראז׳ הצריכה תחושב יחד עם התקופה הבאה.":""),true);$("r-meter").value="";$("r-odo").value="";preview()}
-  catch(err){say("r-msg",saveErr(err))}
-});
-$("f-public").addEventListener("submit",async e=>{e.preventDefault();
-  const date=$("p-date").value,kwh=num("p-kwh"),cost=num("p-cost"),note=$("p-note").value.trim();
-  if(!S.db)return say("p-msg","צריך להתחבר ל‑OneDrive קודם.");
-  if(!date||!(kwh>0)||cost==null||cost<0)return say("p-msg","צריך תאריך, קוט״ש גדול מאפס וסכום.");
-  try{await mutate(d=>{d.pub.push({id:"p"+Date.now().toString(36),date,kwh,cost,note})});say("p-msg","הטעינה נשמרה.",true);$("p-kwh").value="";$("p-cost").value="";$("p-note").value=""}
-  catch(err){say("p-msg",saveErr(err))}
-});
-$("f-fuel").addEventListener("submit",async e=>{e.preventDefault();
-  const fuelPrice=num("s-price"),fuelL100=num("s-l100");
-  if(!S.db)return say("s-msg","צריך להתחבר ל‑OneDrive קודם.");
-  if(!(fuelPrice>0)||!(fuelL100>0))return say("s-msg","שני הערכים צריכים להיות גדולים מאפס.");
-  try{await mutate(d=>{d.settings={fuelPrice,fuelL100}});say("s-msg","נשמר.",true)}
-  catch(err){say("s-msg",saveErr(err))}
-});
-
-/* delete with a second click as confirmation */
-document.addEventListener("click",async e=>{const b=e.target.closest("[data-del]");if(!b||!S.db)return;
-  if(!b.dataset.armed){b.dataset.armed="1";b.textContent="בטוח? מחק";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="מחק"}},3500);return}
-  b.disabled=true;try{const[c,id]=b.dataset.del.split("/");await mutate(d=>{if(c==="public")d.pub=d.pub.filter(p=>p.id!==id);else d.readings=d.readings.filter(r=>r.date!==id)})}catch(err){b.disabled=false;b.textContent="נכשל, נסה שוב";delete b.dataset.armed}
-});
-
-/* tabs */
-function show(tab){document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
-  ["overview","add","history","settings"].forEach(t=>$("v-"+t).hidden=t!==tab);
-  try{localStorage.setItem("zk-tab",tab)}catch(e){}
-  if(tab==="overview")render()}
-document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab)));
-function seg(which){$("seg-reading").setAttribute("aria-pressed",which==="reading");$("seg-public").setAttribute("aria-pressed",which==="public");
-  $("p-reading").hidden=which!=="reading";$("p-public").hidden=which!=="public"}
-$("seg-reading").addEventListener("click",()=>seg("reading"));$("seg-public").addEventListener("click",()=>seg("public"));
-
-/* export */
-function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
-$("export").addEventListener("click",()=>{
-  const rows=[["סוג","תאריך","מונה קוט״ש","קילומטראז׳","מחיר לקוט״ש ₪","קוט״ש","עלות ₪","הערה"]];
-  S.readings.forEach(r=>rows.push(["מדידה",r.date,r.meter,r.odo??"",r.price??"","","",""]));
-  S.pub.forEach(p=>rows.push(["טעינה ציבורית",p.date,"","","",p.kwh,p.cost,p.note||""]));
-  download("zeekr-electric-"+today()+".csv","\ufeff"+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\r\n"),"text/csv");
-});
-$("dl-json").addEventListener("click",()=>download("zeekr-data-"+today()+".json",JSON.stringify(pack(S),null,2),"application/json"));
-
-/* boot */
-$("r-date").value=$("p-date").value=today();
-let rz;window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(render,150)});
-let tab="overview";try{tab=localStorage.getItem("zk-tab")||tab}catch(e){}
-if(!$("v-"+tab))tab="overview";show(tab);
-
-/* ---------- OneDrive storage ---------- */
-const CLIENT_ID="66f6788f-925a-471b-b98f-87d662b76db6";
-const AUTH="https://login.microsoftonline.com/consumers/oauth2/v2.0/";
-const SCOPE="Files.ReadWrite.AppFolder offline_access";
-const REDIRECT=location.origin+location.pathname;
-const FILE="https://graph.microsoft.com/v1.0/me/drive/special/approot:/zeekr-data.json";
-const ls={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
-const byDate=(a,b)=>a.date<b.date?-1:a.date>b.date?1:0;
-const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-function pack(d){return{app:"zeekr-tracker",version:1,updated:new Date().toISOString(),
-  readings:d.readings.map(r=>({date:r.date,meter:r.meter,odo:r.odo??null,price:r.price??null})),
-  public:d.pub.map(p=>({id:p.id,date:p.date,kwh:p.kwh,cost:p.cost,note:p.note||""})),settings:d.settings}}
-function apply(d){
-  S.readings=(d.readings||[]).filter(r=>r&&/^\d{4}-\d\d-\d\d$/.test(r.date)&&isFinite(r.meter)).map(r=>({id:r.date,date:r.date,meter:+r.meter,odo:r.odo==null?null:+r.odo,price:r.price>0?+r.price:null})).sort(byDate);
-  S.pub=(d.public||d.pub||[]).filter(p=>p&&/^\d{4}-\d\d-\d\d$/.test(p.date)).map((p,i)=>({id:String(p.id||"p"+i),date:p.date,kwh:+p.kwh||0,cost:+p.cost||0,note:String(p.note||"")})).sort(byDate);
-  const s=d.settings||{};if(s.fuelPrice>0)S.settings.fuelPrice=+s.fuelPrice;if(s.fuelL100>0)S.settings.fuelL100=+s.fuelL100;
-  ls.set("zk-data",pack(S))}
-function saveErr(err){return err&&err.conflict?"הקובץ עודכן ממכשיר אחר. טענתי את הגרסה החדשה, נסה שוב.":err&&err.auth?"ההתחברות פגה. התחבר שוב ל‑OneDrive.":"השמירה נכשלה. בדוק את החיבור לאינטרנט ונסה שוב."}
-async function login(){
-  const v=b64u(crypto.getRandomValues(new Uint8Array(48))),st=b64u(crypto.getRandomValues(new Uint8Array(12)));
-  const ch=b64u(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));
-  sessionStorage.setItem("zk-pkce",JSON.stringify({v,st}));
-  location.assign(AUTH+"authorize?"+new URLSearchParams({client_id:CLIENT_ID,response_type:"code",redirect_uri:REDIRECT,response_mode:"query",scope:SCOPE,code_challenge:ch,code_challenge_method:"S256",state:st}))}
-async function tokenReq(params){
-  const r=await fetch(AUTH+"token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(Object.assign({client_id:CLIENT_ID,scope:SCOPE},params))});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok){const e=new Error(j.error_description||j.error||"token");e.auth=true;throw e}
-  const t={a:j.access_token,exp:Date.now()+(j.expires_in-60)*1000,r:j.refresh_token||(ls.get("zk-tok")||{}).r};ls.set("zk-tok",t);return t}
-async function token(){
-  const t=ls.get("zk-tok");if(!t)return null;if(t.a&&t.exp>Date.now())return t.a;if(!t.r)return null;
-  try{return (await tokenReq({grant_type:"refresh_token",refresh_token:t.r})).a}catch(e){if(e.auth){ls.del("zk-tok");return null}throw e}}
-function needLogin(text){S.db=false;S.loading=false;$("signin").hidden=false;if(text)$("signin-text").textContent=text;render()}
-async function load(){
-  const tk=await token();if(!tk)return needLogin();
-  S.loading=true;render();
-  const r=await fetch(FILE+"?select=id,eTag,@microsoft.graph.downloadUrl",{headers:{Authorization:"Bearer "+tk}});
-  if(r.status===401){ls.del("zk-tok");return needLogin()}
-  if(r.status===404){S.etag=null}
-  else if(!r.ok)throw new Error("graph "+r.status);
-  else{const m=await r.json(),f=await fetch(m["@microsoft.graph.downloadUrl"]);if(!f.ok)throw new Error("download "+f.status);S.etag=m.eTag||null;apply(await f.json())}
-  S.db=true;S.loading=false;$("signin").hidden=true;render()}
-async function save(d){
-  const tk=await token();if(!tk){needLogin();const e=new Error("auth");e.auth=true;throw e}
-  const h={Authorization:"Bearer "+tk,"Content-Type":"application/json"};if(S.etag)h["If-Match"]=S.etag;
-  const r=await fetch(FILE+":/content",{method:"PUT",headers:h,body:JSON.stringify(pack(d),null,1)});
-  if(r.status===412){await load().catch(()=>{});const e=new Error("conflict");e.conflict=true;throw e}
-  if(r.status===401){ls.del("zk-tok");needLogin();const e=new Error("auth");e.auth=true;throw e}
-  if(!r.ok)throw new Error("graph "+r.status);
-  S.etag=(await r.json()).eTag||null}
-async function mutate(fn){
-  const d={readings:S.readings.map(r=>({...r})),pub:S.pub.map(p=>({...p})),settings:{...S.settings}};
-  fn(d);await save(d);apply(pack(d));render()}
-
-$("signin-btn").addEventListener("click",()=>login().catch(()=>{$("signin-text").textContent="לא הצלחתי לפתוח את דף ההתחברות. הדף חייב לרוץ בכתובת https."}));
-$("signout").addEventListener("click",()=>{ls.del("zk-tok");ls.del("zk-data");location.reload()});
-let pendingImport=null;
-$("imp-file").addEventListener("change",async e=>{const f=e.target.files[0],m=$("d-msg");e.target.value="";if(!f)return;
-  try{const d=JSON.parse(await f.text());if(!Array.isArray(d.readings))throw 0;pendingImport=d;
-    $("imp-text").textContent="בקובץ יש "+d.readings.length+" מדידות ו‑"+((d.public||[]).length)+" טעינות ציבוריות. הייבוא יחליף את כל מה שיש עכשיו.";$("imp-box").hidden=false;m.textContent=""}
-  catch(err){m.textContent="זה לא קובץ נתונים תקין של האפליקציה.";m.className="msg err"}});
-$("imp-go").addEventListener("click",async()=>{const m=$("d-msg");if(!pendingImport)return;
-  if(!S.db){m.textContent="צריך להתחבר ל‑OneDrive קודם.";m.className="msg err";return}
-  const src=pendingImport;
-  try{await mutate(d=>{d.readings=src.readings||[];d.pub=src.public||[];if(src.settings)d.settings=Object.assign(d.settings,src.settings)});
-    pendingImport=null;$("imp-box").hidden=true;m.textContent="הנתונים יובאו ונשמרו ב‑OneDrive.";m.className="msg ok"}
-  catch(err){m.textContent=saveErr(err);m.className="msg err"}});
-
-(async()=>{
-  const cached=ls.get("zk-data");if(cached)apply(cached);render();
-  if(CLIENT_ID.indexOf("PASTE")===0){$("signin-btn").hidden=true;return needLogin("הדף עוד לא הוגדר: חסר בו מזהה האפליקציה (Client ID) מהרישום במיקרוסופט.")}
-  const q=new URLSearchParams(location.search);
-  if(q.has("code")||q.has("error")){
-    const p=JSON.parse(sessionStorage.getItem("zk-pkce")||"{}");sessionStorage.removeItem("zk-pkce");history.replaceState(null,"",REDIRECT);
-    if(q.has("error"))return needLogin("ההתחברות לא הושלמה ("+q.get("error")+"). אפשר לנסות שוב.");
-    if(!p.v||p.st!==q.get("state"))return needLogin("ההתחברות לא הושלמה. נסה שוב.");
-    try{await tokenReq({grant_type:"authorization_code",code:q.get("code"),redirect_uri:REDIRECT,code_verifier:p.v})}
-    catch(e){return needLogin("ההתחברות נכשלה: "+e.message)}
-  }
-  try{await load()}catch(e){S.loading=false;render();$("status").textContent="לא מצליח להגיע ל‑OneDrive כרגע"+(S.readings.length?" · מוצג עותק שמור":"");$("status").className="pill warn"}
-})();
-})();
-</script>
 
 </body>
 </html>
