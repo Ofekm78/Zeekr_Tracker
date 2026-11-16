@@ -15,7 +15,7 @@
  *   2. Application state
  *   3. Generic helpers (DOM, dates, numbers, formatting)
  *   4. Data model (validation, normalisation, serialisation)
- *   5. Calculations (periods, efficiency, totals)
+ *   5. Calculations (periods, efficiency, totals, calendar months)
  *   6. Charts (hand-drawn SVG)
  *   7. Rendering
  *   8. Entry forms
@@ -58,7 +58,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.4";
+  const APP_VERSION = "2.5";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -69,8 +69,13 @@
   /** Least privilege: the app can only see its own folder (OneDrive/Apps/Zeekr Tracker). */
   const SCOPE = "Files.ReadWrite.AppFolder offline_access";
 
-  /** Must match the redirect URI registered for the app, character for character. */
-  const REDIRECT_URI = location.origin + location.pathname;
+  /**
+   * Must match a redirect URI registered for the app, character for character.
+   * Only the folder addresses are registered (…/Zeekr_Tracker/ and
+   * …/Zeekr_Tracker/beta/), so a page opened as …/index.html still signs in
+   * through its folder address.
+   */
+  const REDIRECT_URI = location.origin + location.pathname.replace(/index\.html$/, "");
 
   /**
    * Two copies of this app are published from one repository:
@@ -101,6 +106,8 @@
   const MS_PER_DAY = 864e5;
   /** A reading older than this many days turns the status pill into a reminder. */
   const STALE_AFTER_DAYS = 35;
+  /** A month needs at least this many days with odometer data to get its own efficiency figure. */
+  const MIN_DAYS_FOR_MONTH_EFFICIENCY = 7;
   /** Charts show at most this many most-recent periods. */
   const CHART_MAX_POINTS = 14;
   /** Sanity limit for a home price per kWh, in ILS. */
@@ -172,12 +179,6 @@
   function formatDate(isoDate) {
     const [y, m, d] = isoDate.split("-");
     return +d + "." + +m + "." + y.slice(2);
-  }
-
-  /** "2026-09-02" -> "2.9" (chart axis labels) */
-  function formatDateShort(isoDate) {
-    const [, m, d] = isoDate.split("-");
-    return +d + "." + +m;
   }
 
   /** Formats a number for display; missing or invalid values become a dash. */
@@ -451,6 +452,109 @@
     return { periods, spans, driven, spent, pending };
   }
 
+  const MONTH_NAMES = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+  const MONTH_SHORT = ["ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני", "יולי", "אוג׳", "ספט׳", "אוק׳", "נוב׳", "דצמ׳"];
+
+  /** "2026-03" -> "מרץ 2026" */
+  function monthName(key) {
+    const [y, m] = key.split("-");
+    return MONTH_NAMES[+m - 1] + " " + y;
+  }
+
+  /** "2026-03" -> "מרץ", with the year added on January and on the first label of a chart. */
+  function monthLabel(key, withYear) {
+    const [y, m] = key.split("-");
+    return MONTH_SHORT[+m - 1] + (withYear || m === "01" ? " " + y.slice(2) : "");
+  }
+
+  /** First day of the month after the given ISO date. */
+  function startOfNextMonth(isoDate) {
+    const [y, m] = isoDate.split("-").map(Number);
+    return m === 12 ? (y + 1) + "-01-01" : y + "-" + String(m + 1).padStart(2, "0") + "-01";
+  }
+
+  /** The ISO date one day earlier. */
+  const dayBefore = (isoDate) => new Date(toTime(isoDate) - MS_PER_DAY).toISOString().slice(0, 10);
+
+  /**
+   * Turns periods into calendar months.
+   *
+   * A period runs from the day of its opening reading up to the day before its
+   * closing reading. Its home energy, home cost and distance are spread evenly
+   * over those days, and each day is counted in the month it falls in. So a
+   * reading taken on the 2nd or the 6th of a month does not shift usage into
+   * the wrong month, and two readings in one month simply give that month two
+   * pieces that add up.
+   *
+   * Distance comes from spans (stretches with an odometer value at both ends),
+   * spread over the span's days. Efficiency for a month uses only the days that
+   * a span covers, and is shown only when there are enough of them.
+   *
+   * Public charges are not spread: each is counted in the month of its date.
+   * A charge dated on a closing reading that falls on the 1st, when that month
+   * has no covered days yet, goes to the month before, where its period's days are.
+   *
+   * @returns {{key:string, days:number, daysInMonth:number, partial:boolean,
+   *   kwhHome:number, kwhPublic:number, costHome:number, costPublic:number,
+   *   km:number, odoDays:number, efficiency:(number|null)}[]} oldest first
+   */
+  function buildMonths(readings, publicCharges, model) {
+    const { periods, spans } = model;
+    const months = new Map();
+    const monthOf = (isoDate) => isoDate.slice(0, 7);
+    const get = (key) => {
+      if (!months.has(key)) months.set(key, { key, days: 0, odoDays: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, km: 0, effKwh: 0 });
+      return months.get(key);
+    };
+
+    for (const period of periods) {
+      if (period.days <= 0) continue;
+      const span = spans.find((s) => s.from <= period.from && period.to <= s.to);
+      const kwhPerDay = period.kwhHome / period.days;
+      const costPerDay = period.costHome / period.days;
+      const kmPerDay = span ? span.km / span.days : 0;
+      // Walk the period one month-slice at a time.
+      for (let cursor = period.from; cursor < period.to;) {
+        const next = startOfNextMonth(cursor);
+        const end = next < period.to ? next : period.to;
+        const days = daysBetween(cursor, end);
+        const month = get(monthOf(cursor));
+        month.days += days;
+        month.kwhHome += kwhPerDay * days;
+        month.costHome += costPerDay * days;
+        if (span) {
+          month.odoDays += days;
+          month.km += kmPerDay * days;
+          month.effKwh += kwhPerDay * days;
+        }
+        cursor = end;
+      }
+    }
+
+    if (readings.length > 1) {
+      const first = readings[0].date;
+      const last = readings[readings.length - 1].date;
+      for (const charge of publicCharges) {
+        if (charge.date <= first || charge.date > last) continue; // outside tracking, or still pending
+        let key = monthOf(charge.date);
+        if (!months.has(key)) key = monthOf(dayBefore(charge.date));
+        const month = get(key);
+        month.kwhPublic += charge.kwh;
+        month.costPublic += charge.cost;
+        if (spans.some((s) => charge.date > s.from && charge.date <= s.to)) month.effKwh += charge.kwh;
+      }
+    }
+
+    return [...months.values()]
+      .sort((a, b) => (a.key < b.key ? -1 : 1))
+      .map((m) => {
+        const [y, mm] = m.key.split("-").map(Number);
+        const daysInMonth = new Date(Date.UTC(y, mm, 0)).getUTCDate();
+        const efficiency = m.km > 0 && m.odoDays >= MIN_DAYS_FOR_MONTH_EFFICIENCY ? (m.effKwh / m.km) * 100 : null;
+        return { ...m, daysInMonth, partial: m.days < daysInMonth, efficiency };
+      });
+  }
+
   /* ======================================================================
    * 6. Charts
    * ==================================================================== */
@@ -469,8 +573,9 @@
 
   /**
    * Stacked bar chart: home cost at the bottom, public cost on top.
+   * A faded bar marks a month the readings do not fully cover.
    * @param {HTMLElement} el
-   * @param {{label:string, home:number, pub:number}[]} items
+   * @param {{label:string, home:number, pub:number, faded?:boolean}[]} items
    */
   function drawCostChart(el, items) {
     if (!items.length) { el.innerHTML = '<p class="empty">יופיע כאן אחרי שתי מדידות.</p>'; return; }
@@ -489,8 +594,9 @@
       const x = left + step * i + (step - barW) / 2;
       const hHome = (plotH * it.home) / max;
       const hPub = (plotH * it.pub) / max;
-      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="3" fill="var(--accent)"/>`;
-      if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="3" fill="var(--public)"/>`;
+      const faded = it.faded ? ' opacity="0.45"' : "";
+      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="3" fill="var(--accent)"${faded}/>`;
+      if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="3" fill="var(--public)"${faded}/>`;
       if (step > 34) svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--fg)">${Math.round(it.home + it.pub)}</text>`;
       svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`;
     });
@@ -559,8 +665,8 @@
     pill.className = "pill" + (age > STALE_AFTER_DAYS ? " warn" : "");
   }
 
-  function renderOverview(model) {
-    const { periods, spans, driven, spent, pending } = model;
+  function renderOverview(model, months) {
+    const { driven, spent, pending, spans } = model;
     const efficiency = driven.km ? (driven.kwh / driven.km) * 100 : null;
     const costPerKm = driven.km ? driven.cost / driven.km : null;
     const fuelPerKm = (state.settings.fuelL100 / 100) * state.settings.fuelPrice;
@@ -571,11 +677,13 @@
     $("k-month").textContent = formatNumber(spent.days ? (spent.total / spent.days) * 30 : null, 0);
     $("k-save").textContent = formatNumber(saved, 0);
 
-    drawCostChart($("c-cost"), periods.map((p) => ({ label: formatDateShort(p.to), home: p.costHome, pub: p.costPublic })));
-    const lastPeriod = periods[periods.length - 1];
-    let splitText = lastPeriod
-      ? "תקופה אחרונה (עד " + formatDate(lastPeriod.to) + "): " + describeSplit(lastPeriod.costHome, lastPeriod.costPublic) + "."
+    const shown = months.slice(-CHART_MAX_POINTS);
+    drawCostChart($("c-cost"), shown.map((m, i) => ({ label: monthLabel(m.key, i === 0), home: m.costHome, pub: m.costPublic, faded: m.partial })));
+    const lastFull = [...months].reverse().find((m) => !m.partial);
+    let splitText = lastFull
+      ? "החודש המלא האחרון, " + monthName(lastFull.key) + ": " + describeSplit(lastFull.costHome, lastFull.costPublic) + "."
       : "";
+    if (shown.some((m) => m.partial)) splitText += (splitText ? " " : "") + "עמודה בהירה היא חודש שהמדידות לא מכסות את כל ימיו.";
     if (pending.count) {
       splitText += (splitText ? " " : "") + (pending.count === 1
         ? "מאז המדידה האחרונה נרשמה טעינה ציבורית אחת בסך " + formatNumber(pending.cost) + " ₪. היא תיכנס"
@@ -584,14 +692,16 @@
     }
     $("cost-split").textContent = splitText;
 
-    drawEfficiencyChart($("c-eff"), spans.map((s) => ({ label: formatDateShort(s.to), value: s.efficiency })), efficiency || 0);
+    const effMonths = months.filter((m) => m.efficiency != null).slice(-CHART_MAX_POINTS);
+    drawEfficiencyChart($("c-eff"), effMonths.map((m, i) => ({ label: monthLabel(m.key, i === 0), value: m.efficiency })), efficiency || 0);
     const trend = $("trend");
     trend.textContent = "";
     trend.className = "";
-    if (spans.length > 1) {
-      const change = ((spans[spans.length - 1].efficiency - efficiency) / efficiency) * 100;
+    const lastFullEff = [...months].reverse().find((m) => !m.partial && m.efficiency != null);
+    if (lastFullEff && effMonths.length > 1 && efficiency) {
+      const change = ((lastFullEff.efficiency - efficiency) / efficiency) * 100;
       trend.className = "pill " + (change <= 0 ? "good" : "warn");
-      trend.textContent = "תקופה אחרונה: " + formatNumber(Math.abs(change), 0) + "% " + (change <= 0 ? "מתחת לממוצע" : "מעל הממוצע");
+      trend.textContent = monthName(lastFullEff.key) + ": " + formatNumber(Math.abs(change), 0) + "% " + (change <= 0 ? "מתחת לממוצע" : "מעל הממוצע");
     }
 
     const facts = $("facts");
@@ -637,8 +747,23 @@
       .join("");
   }
 
-  function renderHistory(model) {
+  function renderHistory(model, months) {
     const { periods } = model;
+
+    if (months.length) {
+      const header = "<tr><th>חודש</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th>" +
+        "<th>עלות בית ₪</th><th>עלות ציבורי ₪</th><th>סה״כ ₪</th><th>קוט״ש/100</th></tr>";
+      const rows = months.slice().reverse().map((m) =>
+        `<tr><td>${monthName(m.key)}</td><td>${m.partial ? m.days + " מתוך " + m.daysInMonth + " (חלקי)" : m.days}</td>` +
+        `<td>${m.km ? formatNumber(m.km) : "–"}</td><td>${formatNumber(m.kwhHome, 1)}</td>` +
+        `<td>${m.kwhPublic ? formatNumber(m.kwhPublic, 1) : "–"}</td><td>${formatNumber(m.costHome)}</td>` +
+        `<td>${m.costPublic ? formatNumber(m.costPublic) : "–"}</td><td><strong>${formatNumber(m.costHome + m.costPublic)}</strong></td>` +
+        `<td>${m.efficiency != null ? formatNumber(m.efficiency, 1) : "–"}</td></tr>`).join("");
+      $("t-months").innerHTML = header + rows;
+    } else {
+      $("t-months").innerHTML = '<tr><td class="empty">עוד אין שתי מדידות להשוואה.</td></tr>';
+    }
+
     const deleteButton = (target) => `<button class="btn ghost small danger" data-del="${escapeHtml(target)}">מחק</button>`;
 
     if (periods.length) {
@@ -702,9 +827,10 @@
   /** Redraws every screen from the current state. */
   function render() {
     const model = buildModel(state.readings, state.publicCharges);
+    const months = buildMonths(state.readings, state.publicCharges, model);
     renderStatus();
-    renderOverview(model);
-    renderHistory(model);
+    renderOverview(model, months);
+    renderHistory(model, months);
     renderFormDefaults();
     renderReadingPreview();
   }
@@ -1503,7 +1629,7 @@
   }
 
   // The pure functions are exposed for automated checks and for debugging in the console.
-  const api = { parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, toCsv };
+  const api = { parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
   else if (typeof globalThis !== "undefined") globalThis.ZeekrTracker = api;

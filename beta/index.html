@@ -16,8 +16,8 @@
   <meta name="robots" content="noindex">
   <title>מעקב חשמל Zeekr</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.4">
-  <script src="app.js?v=2.4" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.5">
+  <script src="app.js?v=2.5" defer></script>
 </head>
 <body>
 
@@ -55,7 +55,7 @@
 
     <div class="panel">
       <div class="row">
-        <h2>עלות חשמל לפי תקופה</h2>
+        <h2>עלות חשמל לפי חודש</h2>
         <div class="legend"><span><i class="home"></i>טעינה ביתית</span><span><i class="public"></i>טעינה ציבורית</span></div>
       </div>
       <div class="chart" id="c-cost"></div>
@@ -64,7 +64,7 @@
 
     <div class="panel">
       <div class="row"><h2>צריכה לאורך זמן</h2><span id="trend"></span></div>
-      <p class="sub">קוט״ש ל‑100 ק״מ בכל תקופת מדידה. הקו המקווקו הוא הממוצע הכולל.</p>
+      <p class="sub">קוט״ש ל‑100 ק״מ בכל חודש. הקו המקווקו הוא הממוצע הכולל.</p>
       <div class="chart" id="c-eff"></div>
     </div>
 
@@ -121,6 +121,11 @@
 
   <!-- ===== History ===== -->
   <section class="view" id="v-history" hidden>
+    <div class="panel">
+      <h2>חודשים</h2>
+      <p class="sub">כל תקופה מתחלקת בין החודשים לפי מספר הימים שלה בכל חודש, כך שמדידה ב‑2 או ב‑6 לחודש לא מעבירה צריכה לחודש הלא נכון, ושתי מדידות באותו חודש מצטרפות לאותה שורה. טעינה ציבורית נספרת בחודש שבו קרתה.</p>
+      <div class="scroll"><table id="t-months"></table></div>
+    </div>
     <div class="panel">
       <div class="row"><h2>תקופות</h2><button class="btn ghost small" id="export" type="button" hidden>ייצוא ל‑CSV</button></div>
       <p class="sub">תקופה היא הזמן בין שתי מדידות עוקבות. לכל תקופה מוצגת העלות בפירוק לטעינה ביתית ולטעינה ציבורית.</p>
