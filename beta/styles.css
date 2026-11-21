@@ -16,63 +16,77 @@
 
 /* ---------- 1. Design tokens ---------- */
 
+/* The look follows the logo: black and white like a car's instrument panel,
+   amber for public charging, and the red of the logo's tail light only to
+   mark the latest month. One typeface, Assistant, for text and figures. */
 :root {
-  --bg: #f2f5f7;
+  --bg: #f3f4f6;
   --surface: #ffffff;
-  --line: #d9e0e6;
-  --fg: #14212b;
-  --muted: #5b6b78;
-  --accent: #0b7285;        /* home charging, primary actions */
+  --line: #dadde2;
+  --fg: #16181c;
+  --muted: #5e646e;
+  --accent: #000000;        /* home charging, primary actions */
   --accent-fg: #ffffff;
-  --accent-soft: #dff1f4;
-  --public: #b96a0a;        /* public charging */
+  --accent-soft: #eceef1;
+  --public: #c97a06;        /* public charging */
+  --public-text: #8a4f00;   /* amber dark enough for text on light grounds */
+  --petrol: #a9aeb6;
+  --latest: #d7262e;        /* the logo's tail light */
   --good: #1c7c4a;
   --good-soft: #e0f3e8;
-  --warn: #8a4a00;        /* dark enough for 4.5:1 on --warn-soft */
+  --warn: #8a4a00;
   --warn-soft: #fbecd6;
   --bad: #b3261e;
-  --display: "Rubik", "Heebo", system-ui, sans-serif;
-  --body: "Heebo", "Rubik", system-ui, sans-serif;
+  --display: "Assistant", system-ui, sans-serif;
+  --body: "Assistant", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --radius: 10px;
+  --radius: 14px;
+  --nav-h: 64px;
 }
 
 /* Dark values are repeated twice on purpose: once for the system preference
-   and once for an explicit data-theme="dark" override. */
+   and once for an explicit data-theme="dark" override. Dark is pure black,
+   the background of the logo. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f171d;
-    --surface: #18232b;
-    --line: #2b3944;
-    --fg: #e7eef2;
-    --muted: #93a4b0;
-    --accent: #4cc3d6;
-    --accent-fg: #06222a;
-    --accent-soft: #143640;
-    --public: #e8a548;
+    --bg: #000000;
+    --surface: #121418;
+    --line: #262a31;
+    --fg: #e8eaee;
+    --muted: #9aa1ac;
+    --accent: #f1f2f5;
+    --accent-fg: #000000;
+    --accent-soft: #1c1f24;
+    --public: #f0a52c;
+    --public-text: #f0a52c;
+    --petrol: #4a4f57;
+    --latest: #ff4a50;
     --good: #5fd093;
     --good-soft: #153526;
     --warn: #f0b35c;
-    --warn-soft: #3a2a10;
+    --warn-soft: #2a1f0c;
     --bad: #ff8a80;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f171d;
-  --surface: #18232b;
-  --line: #2b3944;
-  --fg: #e7eef2;
-  --muted: #93a4b0;
-  --accent: #4cc3d6;
-  --accent-fg: #06222a;
-  --accent-soft: #143640;
-  --public: #e8a548;
+  --bg: #000000;
+  --surface: #121418;
+  --line: #262a31;
+  --fg: #e8eaee;
+  --muted: #9aa1ac;
+  --accent: #f1f2f5;
+  --accent-fg: #000000;
+  --accent-soft: #1c1f24;
+  --public: #f0a52c;
+  --public-text: #f0a52c;
+  --petrol: #4a4f57;
+  --latest: #ff4a50;
   --good: #5fd093;
   --good-soft: #153526;
   --warn: #f0b35c;
-  --warn-soft: #3a2a10;
+  --warn-soft: #2a1f0c;
   --bad: #ff8a80;
   color-scheme: dark;
 }
@@ -88,19 +102,19 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--body);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
   direction: rtl;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 48px;
+  padding-block: 14px calc(var(--nav-h) + 32px + env(safe-area-inset-bottom, 0px));
 }
 
-h1 { font-family: var(--display); font-size: 1.6rem; font-weight: 700; margin: 0; text-wrap: balance; }
-h2 { font-family: var(--display); font-size: 1.1rem; font-weight: 600; margin: 0; }
+h1 { font-family: var(--display); font-size: 1.15rem; font-weight: 800; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-size: 1.12rem; font-weight: 600; margin: 0; }
 h3 { font-size: 0.95rem; font-weight: 600; margin: 0; }
 
-a { color: var(--accent); }
+a { color: var(--fg); }
 
 button:focus-visible,
 input:focus-visible,
@@ -109,24 +123,52 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- 3. Page frame ---------- */
 
-.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 16px; }
 
-.head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+/* Header: logo, title and the last-reading line; the menu sits here on wide screens. */
+.head { display: flex; align-items: center; gap: 10px; }
+.head .mark { width: 40px; height: 40px; border-radius: 9px; flex: none; background: #000; }
+.head .title { display: flex; flex-direction: column; min-width: 0; }
 
-.pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.85rem; font-weight: 500; background: var(--accent-soft); color: var(--fg); }
-.pill.warn { background: var(--warn-soft); color: var(--warn); }
-.pill.good { background: var(--good-soft); color: var(--good); }
+/* The last-reading line under the title: plain text, amber when a reading is due. */
+.pill { font-size: 0.85rem; color: var(--muted); }
+.pill.warn { color: var(--public-text); font-weight: 600; }
+.pill.good { color: var(--good); }
+/* The consumption trend next to its chart keeps a chip shape. */
+#trend.pill { padding: 2px 10px; border-radius: 99px; background: var(--accent-soft); font-weight: 600; }
+#trend.pill.warn { background: var(--warn-soft); color: var(--warn); }
+#trend.pill.good { background: var(--good-soft); color: var(--good); }
 
-/* Trial-version notice: must be impossible to miss. */
-.banner { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn); border-radius: var(--radius); padding: 10px 14px; font-weight: 500; font-size: 0.92rem; }
+/* Trial-version notice: a thin amber strip, still impossible to miss. */
+.banner { background: var(--warn-soft); color: var(--public-text); border-inline-start: 3px solid var(--public); border-radius: 0 8px 8px 0; padding: 7px 12px; font-weight: 500; font-size: 0.88rem; }
 
-.tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px; }
-.tabs button { flex: 1; border: 0; background: none; color: var(--muted); font: 500 0.95rem var(--body); padding: 9px 4px; border-radius: 7px; cursor: pointer; }
-.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
+/* Menu: fixed to the bottom of a phone screen, within thumb reach. */
+.tabs {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 50;
+  display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr; align-items: center; gap: 4px;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+}
+.tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0; background: none; color: var(--muted); font: 500 0.78rem var(--body); padding: 6px 2px; border-radius: 12px; cursor: pointer; min-height: 48px; justify-content: center; }
+.tabs button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.tabs button[aria-selected="true"] { color: var(--fg); font-weight: 700; }
+.tabs button.add { background: var(--accent); color: var(--accent-fg); font-weight: 700; margin-inline: 4px; }
+.tabs button.add svg { stroke-width: 2.6; }
+.tabs button.add[aria-selected="true"] { outline: 2px solid var(--latest); outline-offset: 2px; }
 
-.view { display: flex; flex-direction: column; gap: 20px; }
+/* Wide screens: the menu moves into the header as a row. */
+@media (min-width: 900px) {
+  body { padding-block: 20px 48px; }
+  .wrap { max-width: 1120px; }
+  .tabs { position: static; display: flex; gap: 6px; padding: 0; border: 0; background: none; margin-inline-start: auto; }
+  .tabs button { flex-direction: row; gap: 6px; font-size: 0.95rem; padding: 8px 14px; min-height: 0; border-radius: 99px; }
+  .tabs button[aria-selected="true"] { background: var(--surface); }
+  .tabs button.add { padding: 8px 18px; }
+}
 
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.view { display: flex; flex-direction: column; gap: 14px; }
+
+.panel { background: var(--surface); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .row.start { justify-content: flex-start; }
@@ -137,13 +179,40 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- 4. Overview ---------- */
 
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 620px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+/* Summary block: the cost per km against petrol, then three supporting figures. */
+.hero { padding: 14px 0 6px; }
+.hero p { margin: 0; }
+.hero .lead { font-weight: 600; font-size: 1.05rem; }
+.hero .big { display: flex; align-items: baseline; gap: 8px; font-family: var(--display); font-weight: 800; font-size: 5rem; line-height: 1; letter-spacing: -0.02em; color: var(--accent); margin: 6px 0 16px; font-variant-numeric: tabular-nums; }
+.hero .big small { font-size: 1.1rem; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+.vs { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 10px; align-items: center; font-size: 0.9rem; }
+.vs .bar { display: block; height: 12px; }
+.vs .bar i { display: block; height: 100%; border-radius: 2px; width: 0; }
+.vs .ev { background: var(--accent); }
+.vs .pet { background: repeating-linear-gradient(-45deg, var(--petrol) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px var(--petrol); }
+.vs .v { font-weight: 800; font-variant-numeric: tabular-nums; direction: ltr; text-align: left; min-width: 3ch; }
+.hero .saved { margin-top: 16px; }
+.hero .saved b { font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
 
-.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
-.kpi .lab { font-size: 0.82rem; color: var(--muted); }
-.kpi .num { font-family: var(--display); font-size: 1.7rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.kpi .unit { font-size: 0.82rem; color: var(--muted); }
+.figs { display: grid; grid-template-columns: repeat(3, 1fr); border-block: 1px solid var(--line); margin: 6px 0 4px; }
+.figs > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; padding: 12px 0 12px 10px; min-width: 0; }
+.figs > div + div { border-inline-start: 1px solid var(--line); padding-inline-start: 12px; }
+.figs dt { font-size: 0.8rem; color: var(--muted); line-height: 1.3; }
+.figs dd { margin: 0; font-weight: 800; font-size: 1.6rem; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+@media (min-width: 900px) {
+  /* Summary on the right, charts beside it. */
+  #v-overview { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px 28px; align-items: start; }
+  #v-overview > .overview-top { grid-row: span 6; position: sticky; top: 20px; }
+  #v-overview > .panel { grid-column: 2; }
+}
+
+/* One chart at a time: the buttons above the chart pick which. */
+.chips { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chips button { flex: none; border: 1px solid var(--line); background: none; color: var(--fg); font: 500 0.9rem var(--body); padding: 6px 13px; border-radius: 99px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.pane { display: flex; flex-direction: column; gap: 10px; }
 
 /* Charts are drawn left-to-right even though the page is right-to-left. */
 .chart { width: 100%; direction: ltr; }
@@ -153,6 +222,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 5px; }
 .legend .home { background: var(--accent); }
 .legend .public { background: var(--public); }
+.legend .latest { background: var(--latest); height: 3px; vertical-align: 3px; }
 
 .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin: 0; }
 @media (max-width: 520px) { .facts { grid-template-columns: 1fr; } }
@@ -168,11 +238,18 @@ form .full { grid-column: 1 / -1; }
 
 label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 0; }
 
-input { font: inherit; font-size: 1.05rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0; }
+input { font: inherit; font-size: 1.1rem; font-weight: 600; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; width: 100%; min-width: 0; font-variant-numeric: tabular-nums; }
 
-.btn { font: 600 1rem var(--body); border: 0; border-radius: 8px; padding: 11px 16px; background: var(--accent); color: var(--accent-fg); cursor: pointer; }
-.btn.ghost { background: none; color: var(--accent); border: 1px solid var(--line); font-weight: 500; }
-.btn.small { padding: 4px 10px; font-size: 0.85rem; }
+/* The meter field looks like the counter on the charging station: white
+   digits on black, the latest digit area underlined in tail-light red. */
+label.meter { background: #000; color: rgba(255, 255, 255, 0.72); border-radius: var(--radius); padding: 14px 16px 12px; gap: 8px; }
+label.meter input { background: #1c1f24; color: #fff; border: 0; border-bottom: 3px solid var(--latest); border-radius: 8px; font-size: 2.4rem; font-weight: 800; letter-spacing: 0.06em; padding: 6px 12px; direction: ltr; text-align: right; }
+label.meter input::placeholder { color: rgba(255, 255, 255, 0.28); }
+label.meter .prev { font-size: 0.82rem; }
+
+.btn { font: 700 1.05rem var(--body); border: 0; border-radius: 12px; padding: 13px 18px; background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+.btn.ghost { background: none; color: var(--fg); border: 1px solid var(--line); font-weight: 600; }
+.btn.small { padding: 5px 12px; font-size: 0.88rem; border-radius: 99px; }
 .btn.danger { color: var(--bad); }
 /* A file input dressed as a button: the label is the visible control. */
 label.btn { flex-direction: row; font-size: 1rem; }
@@ -181,12 +258,12 @@ label.btn { flex-direction: row; font-size: 1rem; }
 .msg.err { color: var(--bad); }
 .msg.ok { color: var(--good); }
 
-.hint { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 0.92rem; }
+.hint { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; font-size: 0.92rem; }
 .hint .row { margin-top: 10px; }
 
-.seg { display: flex; gap: 6px; }
-.seg button { border: 1px solid var(--line); background: none; color: var(--fg); font: 500 0.92rem var(--body); padding: 7px 12px; border-radius: 99px; cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; }
+.seg button { border: 0; background: none; color: var(--muted); font: 600 0.95rem var(--body); padding: 10px 12px; border-radius: 9px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
 
 /* ---------- 6. Tables ---------- */
 
@@ -200,7 +277,7 @@ td.footnote { white-space: normal; color: var(--muted); }
 /* ---------- 7. Import guide ---------- */
 
 .guide { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
-.guide summary { cursor: pointer; font-weight: 500; color: var(--accent); }
+.guide summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .guide[open] summary { margin-bottom: 12px; }
 .guide .body { display: flex; flex-direction: column; gap: 12px; font-size: 0.92rem; }
 .guide ul { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; }
