@@ -158,7 +158,8 @@ def main(argv):
                 continue
             result = parse_announcement(pdf_text(body))
             if not result:
-                print(f"could not read a price from {url}")
+                text = re.sub(r"\s+", " ", pdf_text(body))
+                print(f"could not read a price from {url}; text starts: {text[:1500]}")
                 continue
             date, price = result
             print(f"{url}: {date} {price}")
