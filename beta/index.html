@@ -19,16 +19,39 @@
   <meta name="apple-mobile-web-app-title" content="ZEEKR TRACKER TEST">
   <!-- Home-screen icon. Phones copy it when the shortcut is created, so an
        existing shortcut keeps its old icon until it is removed and added again. -->
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=5">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=5">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=5">
-  <!-- Installs as a full-screen app, separate from the main one (own name and black icon). -->
-  <link rel="manifest" href="manifest.webmanifest?v=5">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=6">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=6">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
+  <!-- Installs as a full-screen app, separate from the main one (own name, black symbol-only icon). -->
+  <link rel="manifest" href="manifest.webmanifest?v=6">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.5">
+  <link rel="stylesheet" href="styles.css?v=2.5.1">
   <script src="app.js?v=2.5" defer></script>
 </head>
 <body>
+
+<!-- Opening screen, trial page only: the full logo for 5 seconds when the page is
+     opened as the installed app. Shown once per launch (not again after the
+     Microsoft sign-in returns to the page); a tap closes it early. -->
+<div class="splash" id="splash" hidden>
+  <img src="icons/splash.png?v=1" alt="ZEEKR TRACKER">
+</div>
+<script>
+  (function () {
+    var el = document.getElementById("splash");
+    var app = window.matchMedia && matchMedia("(display-mode: standalone)").matches;
+    var seen = false;
+    try { seen = sessionStorage.getItem("zk-splash") === "1"; sessionStorage.setItem("zk-splash", "1"); } catch (e) { /* storage unavailable */ }
+    if (!app || seen) return;
+    el.hidden = false;
+    function close() {
+      el.classList.add("splash-out");
+      setTimeout(function () { el.hidden = true; }, 400);
+    }
+    var timer = setTimeout(close, 5000);
+    el.addEventListener("click", function () { clearTimeout(timer); close(); });
+  })();
+</script>
 
 <div class="wrap">
   <header class="head">
