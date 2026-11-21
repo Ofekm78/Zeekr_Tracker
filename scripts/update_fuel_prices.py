@@ -79,6 +79,8 @@ def parse_announcement(text):
     both orders of the key phrase "לא יעלה על" (shall not exceed) are tried.
     The 95-octane sentence is the first one with that phrase.
     """
+    # pdftotext wraps Hebrew runs in invisible direction marks; drop them first.
+    text = re.sub("[\u200e\u200f\u202a-\u202e\u2066-\u2069]", "", text)
     flat = re.sub(r"\s+", " ", text)
     price = None
     for pattern in (r"לא יעלה על\s*" + PRICE, PRICE + r"\s*על יעלה אל"):
