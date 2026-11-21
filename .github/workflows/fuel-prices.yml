@@ -1,0 +1,51 @@
+# Updates data/fuel-prices.json from the Ministry of Energy announcements.
+# Runs every morning (Israel time); a failed run means no price was found for
+# the current month, and GitHub emails the repository owner. To add a price by
+# hand: Actions > Fuel prices > Run workflow, fill in date and price.
+name: Fuel prices
+
+on:
+  schedule:
+    - cron: "15 4 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Effective date (YYYY-MM-DD). Leave empty to search gov.il."
+        required: false
+      price:
+        description: "95-octane self-service price incl. VAT, ILS per liter"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fuel-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pdftotext
+        run: sudo apt-get update -q && sudo apt-get install -y -q poppler-utils
+      - name: Update prices
+        env:
+          INPUT_DATE: ${{ github.event.inputs.date }}
+          INPUT_PRICE: ${{ github.event.inputs.price }}
+        run: |
+          if [ -n "$INPUT_DATE" ] && [ -n "$INPUT_PRICE" ]; then
+            python3 scripts/update_fuel_prices.py "$INPUT_DATE" "$INPUT_PRICE"
+          else
+            python3 scripts/update_fuel_prices.py
+          fi
+      - name: Commit if changed
+        if: always()
+        run: |
+          if git diff --quiet -- data/fuel-prices.json; then echo "no change"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/fuel-prices.json
+          git commit -m "Update petrol prices"
+          git push

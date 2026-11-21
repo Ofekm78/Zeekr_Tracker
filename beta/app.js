@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.7";
+  const APP_VERSION = "2.8";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -129,6 +129,13 @@
     recentUrl: "https://api.open-meteo.com/v1/forecast",
     storeKey: "zk-temp",
   };
+  /**
+   * Official petrol prices by effective date, kept up to date by a GitHub
+   * workflow (see scripts/update_fuel_prices.py). Shared by both copies of
+   * the app, so the trial copy reads it from the folder above.
+   */
+  const FUEL_PRICES_URL = (IS_BETA ? "../" : "") + "data/fuel-prices.json";
+  const FUEL_PRICES_KEY = "zk-fuel-prices";
   /** A month needs this many days with temperature data to appear in the chart. */
   const MIN_DAYS_FOR_MONTH_TEMP = 7;
   /** Sanity limit for a home price per kWh, in ILS. */
@@ -605,13 +612,13 @@
 
   /**
    * Money saved against the petrol car in one month: the petrol for the
-   * month's km minus the electricity used for them, at the month's average
-   * price per kWh. Null when the month has no km.
+   * month's km at that month's petrol price, minus the electricity used for
+   * them at the month's average price per kWh. Null when the month has no km.
    */
-  function monthSaving(m, fuelPerKm) {
+  function monthSaving(m) {
     if (!(m.km > 0)) return null;
     const price = monthPricePerKwh(m);
-    return price == null ? null : m.km * fuelPerKm - m.effKwh * price;
+    return price == null ? null : m.km * monthFuelPerKm(m.key) - m.effKwh * price;
   }
 
   /**
@@ -620,7 +627,7 @@
    *   kwhHome:number, kwhPublic:number, costHome:number, costPublic:number,
    *   efficiency:(number|null), saving:number}[]} oldest first
    */
-  function buildYears(months, fuelPerKm) {
+  function buildYears(months) {
     const years = new Map();
     for (const m of months) {
       const key = m.key.slice(0, 4);
@@ -628,7 +635,7 @@
       const y = years.get(key);
       y.days += m.days; y.km += m.km; y.effKwh += m.effKwh;
       y.kwhHome += m.kwhHome; y.kwhPublic += m.kwhPublic; y.costHome += m.costHome; y.costPublic += m.costPublic;
-      y.saving += monthSaving(m, fuelPerKm) || 0;
+      y.saving += monthSaving(m) || 0;
     }
     return [...years.values()].map((y) => {
       const daysInYear = daysBetween(y.year + "-01-01", (+y.year + 1) + "-01-01");
@@ -657,6 +664,54 @@
       return { name, count: g.count, kwh: g.kwh, cost: g.cost };
     }).sort((a, b) => b.cost - a.cost);
   }
+
+  /* ---------- Official petrol prices ---------- */
+
+  /** [{from: "YYYY-MM-DD", price}] sorted by date; empty until loaded. */
+  let fuelPrices = sanitizeFuelPrices(storage.get(FUEL_PRICES_KEY));
+
+  function sanitizeFuelPrices(raw) {
+    const list = (raw && Array.isArray(raw.prices) ? raw.prices : [])
+      .filter((p) => p && parseDate(p.from) && Number(p.price) > 0)
+      .map((p) => ({ from: parseDate(p.from), price: Number(p.price) }));
+    return list.sort((a, b) => (a.from < b.from ? -1 : 1));
+  }
+
+  /** Loads the price list (fresh when online, the stored copy otherwise). */
+  async function loadFuelPrices(onDone) {
+    try {
+      const response = await fetch(FUEL_PRICES_URL, { cache: "no-cache" });
+      if (!response.ok) return;
+      const json = await response.json();
+      const list = sanitizeFuelPrices(json);
+      if (!list.length) return;
+      storage.set(FUEL_PRICES_KEY, json);
+      fuelPrices = list;
+      onDone();
+    } catch (err) { /* offline: keep the stored copy */ }
+  }
+
+  /**
+   * Petrol price per liter on a date: the official price in effect then, or
+   * the price in Settings for dates before the list starts.
+   */
+  function fuelPriceOn(isoDate) {
+    let price = null;
+    for (const p of fuelPrices) { if (p.from <= isoDate) price = p.price; else break; }
+    return price ?? state.settings.fuelPrice;
+  }
+
+  /** The month's petrol price, averaged over its days (prices can change mid-month). */
+  function monthFuelPrice(monthKey) {
+    const [y, m] = monthKey.split("-").map(Number);
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    let sum = 0;
+    for (let d = 1; d <= days; d++) sum += fuelPriceOn(monthKey + "-" + String(d).padStart(2, "0"));
+    return sum / days;
+  }
+
+  /** Petrol cost per km in a month for the comparison car. */
+  const monthFuelPerKm = (monthKey) => (state.settings.fuelL100 / 100) * monthFuelPrice(monthKey);
 
   /* ---------- Weather (daily mean temperature) ---------- */
 
@@ -895,8 +950,12 @@
     const { driven, spent, pending, spans } = model;
     const efficiency = driven.km ? (driven.kwhUsed / driven.km) * 100 : null;
     const costPerKm = driven.km ? driven.cost / driven.km : null;
-    const fuelPerKm = (state.settings.fuelL100 / 100) * state.settings.fuelPrice;
-    const saved = driven.km ? driven.km * fuelPerKm - driven.cost : null;
+    // Per-km comparison and forecasts use today's petrol price; amounts so far use each month's price.
+    const currentFuelPrice = fuelPriceOn(todayIso());
+    const fuelPerKm = (state.settings.fuelL100 / 100) * currentFuelPrice;
+    const petrolSoFar = months.reduce((sum, m) => sum + (m.km > 0 ? m.km * monthFuelPerKm(m.key) : 0), 0);
+    const savedByMonth = months.reduce((sum, m) => sum + (monthSaving(m) || 0), 0);
+    const saved = driven.km ? savedByMonth : null;
 
     $("k-eff").textContent = formatNumber(efficiency, 1);
     $("k-cpk").textContent = formatNumber(costPerKm == null ? null : costPerKm * 100, 1);
@@ -946,7 +1005,7 @@
         ["מתוכם טעינה ביתית", formatNumber(spent.home) + " ₪"],
         ["מתוכם טעינה ציבורית", formatNumber(spent.public) + " ₪"],
         ...(pending.count ? [["טעינות ציבוריות מאז המדידה האחרונה", formatNumber(pending.cost) + " ₪"]] : []),
-        ["אותם ק״מ בבנזין", formatNumber(driven.km * fuelPerKm) + " ₪"],
+        ["אותם ק״מ בבנזין", formatNumber(petrolSoFar) + " ₪"],
         ["עלות לק״מ: חשמל מול בנזין", formatNumber(costPerKm * 100, 0) + " מול " + formatNumber(fuelPerKm * 100, 0) + " אג׳"],
         ["קצב נסיעה", formatNumber(kmPerDay * 30) + " ק״מ בחודש"],
         ["תחזית ק״מ לשנה", formatNumber(yearKm) + " ק״מ"],
@@ -955,8 +1014,10 @@
       ];
       facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
       $("facts-note").textContent = (driven.corrected ? "הצריכה מתוקנת לפי אחוז הסוללה ב‑" + driven.corrected + " מתוך " + spans.length + " תקופות. " : "") + "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) +
-        " ליטר ל‑100 ק״מ ובנזין ב‑" + formatNumber(state.settings.fuelPrice, 2) +
-        " ₪ לליטר. אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
+        " ליטר ל‑100 ק״מ. " + (fuelPrices.length
+          ? "מחיר הבנזין בכל חודש הוא המחיר הרשמי של משרד האנרגיה, וכרגע " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר."
+          : "מחיר הבנזין הוא " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר.") +
+        " אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
     } else {
       facts.innerHTML = '<p class="empty span-all">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>';
       $("facts-note").textContent = "";
@@ -988,7 +1049,7 @@
     let running = 0;
     const cumulative = [];
     for (const m of months) {
-      const saving = monthSaving(m, fuelPerKm);
+      const saving = monthSaving(m);
       if (saving == null) continue;
       running += saving;
       cumulative.push({ key: m.key, value: running });
@@ -1059,8 +1120,8 @@
   }
 
   /** One row per calendar year. */
-  function renderYears(months, fuelPerKm) {
-    const years = buildYears(months, fuelPerKm);
+  function renderYears(months) {
+    const years = buildYears(months);
     $("years-panel").hidden = !years.length;
     if (!years.length) return;
     const header = "<tr><th>שנה</th><th>ימים</th><th>ק״מ</th><th>קוט״ש</th><th>עלות בית ₪</th><th>עלות ציבורי ₪</th>" +
@@ -1087,7 +1148,7 @@
 
   function renderHistory(model, months) {
     const { periods } = model;
-    renderYears(months, (state.settings.fuelL100 / 100) * state.settings.fuelPrice);
+    renderYears(months);
 
     if (months.length) {
       const header = "<tr><th>חודש</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th>" +
@@ -1152,6 +1213,17 @@
     $("export").hidden = !state.readings.length && !state.publicCharges.length;
   }
 
+  /** Settings line about the official petrol prices. */
+  function renderFuelPricesInfo() {
+    const el = $("fuel-auto");
+    if (!el) return;
+    if (!fuelPrices.length) { el.textContent = "המחירים הרשמיים עוד לא נטענו. עד שייטענו, החישוב משתמש במחיר שכאן."; return; }
+    const last = fuelPrices[fuelPrices.length - 1];
+    el.textContent = "מחיר הבנזין מתעדכן אוטומטית לפי ההודעות של משרד האנרגיה. המחיר העדכני הוא " +
+      formatNumber(last.price, 2) + " ₪ לליטר, מיום " + formatDate(last.from) +
+      ". המחיר שכאן משמש רק לתאריכים שלפני " + formatDate(fuelPrices[0].from) + ".";
+  }
+
   /** Keeps form defaults in sync with the data without overwriting what the user is typing. */
   function renderFormDefaults() {
     const priceInput = $("r-price");
@@ -1176,6 +1248,7 @@
     renderOverview(model, months);
     renderHistory(model, months);
     renderFormDefaults();
+    renderFuelPricesInfo();
     renderReadingPreview();
   }
 
@@ -1940,7 +2013,7 @@
     $("seg-reading").addEventListener("click", () => showEntryForm("reading"));
     $("seg-public").addEventListener("click", () => showEntryForm("public"));
 
-    for (const id of ["r-date", "r-meter", "r-odo", "r-price"]) $(id).addEventListener("input", renderReadingPreview);
+    for (const id of ["r-date", "r-meter", "r-odo", "r-price", "r-soc"]) $(id).addEventListener("input", renderReadingPreview);
     $("r-price").addEventListener("input", () => { $("r-price").dataset.touched = "1"; });
     $("f-reading").addEventListener("submit", onSubmitReading);
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
@@ -1984,6 +2057,7 @@
     const cached = storage.get(STORE.cache);
     if (cached) applyData(normalizeData(cached));
     render();
+    loadFuelPrices(render);
 
     if (!(await finishSignInRedirect())) return;
     try {
