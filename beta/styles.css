@@ -223,3 +223,6 @@ td.footnote { white-space: normal; color: var(--muted); }
 }
 .splash img { width: min(72vw, 360px); height: auto; aspect-ratio: 720 / 731; }
 .splash-out { opacity: 0; pointer-events: none; }
+
+/* Reference row under a table (home price next to the charging companies). */
+.muted-row td { color: var(--muted); }

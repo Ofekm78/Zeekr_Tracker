@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=2.6">
-  <script src="app.js?v=2.6" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2.7">
+  <script src="app.js?v=2.7" defer></script>
 </head>
 <body>
 
@@ -106,6 +106,42 @@
     </div>
 
     <div class="panel">
+      <h2>עלות ל‑100 ק״מ</h2>
+      <p class="sub">כמה עלה החשמל ל‑100 ק״מ בכל חודש, בית וציבורי יחד. הקו המקווקו הוא הממוצע הכולל.</p>
+      <div class="chart" id="c-cost100"></div>
+    </div>
+
+    <div class="panel">
+      <h2>חיסכון מצטבר מול בנזין</h2>
+      <p class="sub">כמה נחסך מתחילת המעקב לעומת רכב הבנזין שבהגדרות, מצטבר חודש אחרי חודש.</p>
+      <div class="chart" id="c-saving"></div>
+    </div>
+
+    <div class="panel">
+      <h2>חלק הטעינה הציבורית</h2>
+      <p class="sub">אחוז ההוצאה על חשמל שהלך לטעינה ציבורית בכל חודש. הקו המקווקו הוא הממוצע הכולל.</p>
+      <div class="chart" id="c-share"></div>
+      <p class="sub" id="share-note"></p>
+    </div>
+
+    <div class="panel">
+      <h2>צריכה מול טמפרטורה</h2>
+      <p class="sub">קוט״ש ל‑100 ק״מ בכל חודש, מול הטמפרטורה הממוצעת באותו חודש.</p>
+      <div class="chart" id="c-temp"></div>
+      <p class="sub" id="temp-note"></p>
+    </div>
+
+    <div class="panel" id="prov-panel" hidden>
+      <details class="guide">
+        <summary id="prov-summary">ניתוח לפי חברת טעינה</summary>
+        <div class="body">
+          <p class="sub">כל הטעינות הציבוריות, מקובצות לפי שם החברה. שמות שנבדלים רק ברווחים או באותיות גדולות נספרים כחברה אחת.</p>
+          <div class="scroll"><table id="t-providers"></table></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel">
       <h2>תחזית שנתית והשוואה לבנזין</h2>
       <dl class="facts" id="facts"></dl>
       <p class="sub" id="facts-note"></p>
@@ -132,7 +168,8 @@
         <label class="full">תאריך<input type="date" id="r-date" required></label>
         <label>קוט״ש במונה<input type="number" inputmode="decimal" step="any" id="r-meter" placeholder="למשל 4350.2" required></label>
         <label>קילומטראז׳ ברכב<input type="number" inputmode="numeric" step="any" id="r-odo" placeholder="למשל 56200"></label>
-        <label class="full">מחיר לקוט״ש לפי חשבון החשמל (₪)<input type="number" inputmode="decimal" step="any" id="r-price" placeholder="0.5451" required></label>
+        <label>מחיר לקוט״ש לפי חשבון החשמל (₪)<input type="number" inputmode="decimal" step="any" id="r-price" placeholder="0.5451" required></label>
+        <label>אחוז סוללה ברכב (לא חובה)<input type="number" inputmode="numeric" step="any" min="0" max="100" id="r-soc" placeholder="למשל 80"></label>
         <div class="hint full" id="r-preview">מלא את השדות כדי לראות את הסיכום מאז המדידה הקודמת.</div>
         <button class="btn full" type="submit">שמור מדידה</button>
         <p class="msg full" id="r-msg" role="status"></p>
@@ -158,6 +195,11 @@
 
   <!-- ===== History ===== -->
   <section class="view" id="v-history" hidden>
+    <div class="panel" id="years-panel" hidden>
+      <h2>סיכום שנתי</h2>
+      <p class="sub">כל שנה קלנדרית, מסוכמת מהחודשים. שנה שהמדידות לא מכסות את כל ימיה מסומנת כחלקית, ולכן ההשוואה בין שנים היא לפי עלות ממוצעת ליום.</p>
+      <div class="scroll"><table id="t-years"></table></div>
+    </div>
     <div class="panel">
       <h2>חודשים</h2>
       <p class="sub">כל תקופה מתחלקת בין החודשים לפי מספר הימים שלה בכל חודש, כך שמדידה ב‑2 או ב‑6 לחודש לא מעבירה צריכה לחודש הלא נכון, ושתי מדידות באותו חודש מצטרפות לאותה שורה. טעינה ציבורית נספרת בחודש שבו קרתה.</p>
@@ -182,6 +224,16 @@
         <label>צריכת דלק (ליטר ל‑100 ק״מ)<input type="number" inputmode="decimal" step="any" id="s-l100" required></label>
         <button class="btn full" type="submit">שמור</button>
         <p class="msg full" id="s-msg" role="status"></p>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>הרכב שלך</h2>
+      <p class="sub">קיבולת הסוללה משמשת לתיקון הצריכה כשמזינים אחוז סוללה במדידות. לפי המפרט הרשמי של Zeekr X, הסוללה היא 66 קוט״ש.</p>
+      <form id="f-car" novalidate>
+        <label class="full">קיבולת הסוללה (קוט״ש)<input type="number" inputmode="decimal" step="any" id="s-battery" required></label>
+        <button class="btn full" type="submit">שמור</button>
+        <p class="msg full" id="c-msg" role="status"></p>
       </form>
     </div>
 
@@ -247,6 +299,7 @@
               <tr><td>חברה</td><td><code>provider</code></td><td>ריק</td><td>רשות</td><td>החברה שבה בוצעה הטעינה, טקסט חופשי</td></tr>
               <tr><td>הערה</td><td><code>note</code></td><td>ריק</td><td>רשות</td><td>טקסט חופשי</td></tr>
               <tr><td>מזהה</td><td><code>id</code></td><td>ריק</td><td>רשות</td><td>מופיע בקובץ שהאפליקציה מייצאת. בשורה חדשה משאירים ריק</td></tr>
+              <tr><td>אחוז סוללה</td><td><code>soc</code></td><td>רשות</td><td>ריק</td><td>אחוז הסוללה שהרכב הראה בזמן המדידה, בין 0 ל‑100. ריק בקובץ ישן: האחוז השמור נשאר</td></tr>
             </table>
           </div>
           <p class="sub">דוגמה לקובץ CSV עם שתי מדידות באותו חודש וטעינה ציבורית אחת:</p>
@@ -258,7 +311,7 @@
           <h3>קובץ JSON</h3>
           <ul>
             <li>אובייקט אחד עם הרשימה <code>readings</code> (מדידות) והרשימה <code>public</code> (טעינות ציבוריות). מספיקה אחת מהן.</li>
-            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code> ו‑<code>price</code> רשות (אפשר <code>null</code>).</li>
+            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code>, <code>price</code> ו‑<code>soc</code> רשות (אפשר <code>null</code>).</li>
             <li>בכל טעינה ציבורית: <code>date</code>, <code>kwh</code> ו‑<code>cost</code> חובה, <code>provider</code>, <code>note</code> ו‑<code>id</code> רשות.</li>
             <li><code>settings</code> רשות. אם הוא מופיע, הגדרות רכב הבנזין להשוואה מתעדכנות לפיו.</li>
             <li>שדות אחרים, כמו <code>app</code>, <code>version</code> ו‑<code>updated</code>, לא נדרשים בייבוא.</li>

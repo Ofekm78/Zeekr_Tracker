@@ -26,9 +26,9 @@
  * Data model (also the shape of zeekr-data.json)
  *   {
  *     app: "zeekr-tracker", version: 2, updated: ISO timestamp,
- *     readings: [{ date, meter, odo, price }],
+ *     readings: [{ date, meter, odo, price, soc }],
  *     public:   [{ id, date, kwh, cost, provider, note }],
- *     settings: { fuelPrice, fuelL100 }
+ *     settings: { fuelPrice, fuelL100, batteryKwh }
  *   }
  *
  *   reading - one look at the home charger's meter.
@@ -38,6 +38,9 @@
  *     price  home price per kWh (ILS) for the period that ENDS at this
  *            reading. Storing it per reading is what makes a price change
  *            apply from that reading onwards and never retroactively.
+ *     soc    battery charge in percent (0-100) shown in the car at the
+ *            reading, or null. Optional; when both ends of a span have it,
+ *            the change in stored energy corrects that span's efficiency.
  *
  *   public charge - one charging session away from home.
  *     id        opaque unique string.
@@ -58,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.6";
+  const APP_VERSION = "2.7";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -102,7 +105,10 @@
   const STORE = { token: "zk-tok", cache: IS_BETA ? CACHE_KEYS.beta : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce" };
 
   const DATA_FORMAT_VERSION = 2;
-  const DEFAULT_SETTINGS = { fuelPrice: 7.3, fuelL100: 7.5 };
+  /** batteryKwh: Zeekr X, 66 kWh per the manufacturer's specification page. */
+  const DEFAULT_SETTINGS = { fuelPrice: 7.3, fuelL100: 7.5, batteryKwh: 66 };
+  /** Sanity limits for the battery capacity setting, in kWh. */
+  const MIN_BATTERY_KWH = 10, MAX_BATTERY_KWH = 200;
   const MS_PER_DAY = 864e5;
   /** A reading older than this many days turns the status pill into a reminder. */
   const STALE_AFTER_DAYS = 35;
@@ -110,6 +116,21 @@
   const MIN_DAYS_FOR_MONTH_EFFICIENCY = 7;
   /** Charts show at most this many most-recent periods. */
   const CHART_MAX_POINTS = 14;
+  /**
+   * Daily mean temperature for the consumption-versus-temperature chart, from
+   * Open-Meteo (free, no key). Only these fixed coordinates are sent: Beit
+   * Yehoshua, where the car is kept. Kept in localStorage, never in the data file.
+   */
+  const WEATHER = {
+    place: "בית יהושע",
+    latitude: 32.262,
+    longitude: 34.863,
+    archiveUrl: "https://archive-api.open-meteo.com/v1/archive",
+    recentUrl: "https://api.open-meteo.com/v1/forecast",
+    storeKey: "zk-temp",
+  };
+  /** A month needs this many days with temperature data to appear in the chart. */
+  const MIN_DAYS_FOR_MONTH_TEMP = 7;
   /** Sanity limit for a home price per kWh, in ILS. */
   const MAX_PRICE_PER_KWH = 5;
 
@@ -131,9 +152,9 @@
   };
 
   /**
-   * @typedef {{date:string, meter:number, odo:(number|null), price:(number|null)}} Reading
+   * @typedef {{date:string, meter:number, odo:(number|null), price:(number|null), soc:(number|null)}} Reading
    * @typedef {{id:string, date:string, kwh:number, cost:number, provider:string, note:string}} PublicCharge
-   * @typedef {{readings:Reading[], publicCharges:PublicCharge[], settings:{fuelPrice:number, fuelL100:number}}} AppData
+   * @typedef {{readings:Reading[], publicCharges:PublicCharge[], settings:{fuelPrice:number, fuelL100:number, batteryKwh:number}}} AppData
    */
 
   /* ======================================================================
@@ -246,11 +267,14 @@
     const meter = parseNumber(raw && raw.meter);
     const odo = parseNumber(raw && raw.odo);
     const price = parseNumber(raw && raw.price);
+    const rawSoc = raw && raw.soc;
+    const soc = parseNumber(typeof rawSoc === "string" ? rawSoc.replace("%", "") : rawSoc);
     if (!date) return { error: "תאריך חסר או לא תקין" };
     if (meter == null || !isFinite(meter) || meter < 0) return { error: "קריאת מונה חסרה או לא תקינה" };
     if (odo != null && (!isFinite(odo) || odo < 0)) return { error: "קילומטראז׳ לא תקין" };
     if (price != null && (!isFinite(price) || price < 0 || price > MAX_PRICE_PER_KWH)) return { error: "מחיר לקוט״ש לא תקין" };
-    return { value: { date, meter, odo, price: price > 0 ? price : null } };
+    if (soc != null && (!isFinite(soc) || soc < 0 || soc > 100)) return { error: "אחוז סוללה צריך להיות בין 0 ל‑100" };
+    return { value: { date, meter, odo, price: price > 0 ? price : null, soc } };
   }
 
   /**
@@ -299,6 +323,8 @@
     const rawSettings = source.settings || {};
     if (rawSettings.fuelPrice > 0) settings.fuelPrice = Number(rawSettings.fuelPrice);
     if (rawSettings.fuelL100 > 0) settings.fuelL100 = Number(rawSettings.fuelL100);
+    const battery = Number(rawSettings.batteryKwh);
+    if (battery >= MIN_BATTERY_KWH && battery <= MAX_BATTERY_KWH) settings.batteryKwh = battery;
     return {
       readings: [...readingsByDate.values()].sort(byDate),
       publicCharges: publicCharges.sort(byDate),
@@ -313,7 +339,7 @@
       app: "zeekr-tracker",
       version: DATA_FORMAT_VERSION,
       updated: new Date().toISOString(),
-      readings: data.readings.map((r) => ({ date: r.date, meter: r.meter, odo: r.odo ?? null, price: r.price ?? null })),
+      readings: data.readings.map((r) => ({ date: r.date, meter: r.meter, odo: r.odo ?? null, price: r.price ?? null, soc: r.soc ?? null })),
       public: data.publicCharges.map((p) => ({ id: p.id, date: p.date, kwh: p.kwh, cost: p.cost, provider: p.provider || "", note: p.note || "" })),
       settings: { ...data.settings },
     };
@@ -364,10 +390,17 @@
    *   value. Efficiency (kWh per 100 km) can only be computed per span, which
    *   is how a reading with a missing odometer is handled.
    *
+   * Battery correction: the meter shows energy that went INTO the car, not
+   * energy used for driving. When both ends of a span have a battery
+   * percentage, the change in stored energy (percent change x capacity) is
+   * taken off the charged energy to get the energy used (kwhUsed). Costs are
+   * never corrected: what was paid was paid.
+   *
    * @param {Reading[]} readings sorted by date
    * @param {PublicCharge[]} publicCharges
+   * @param {number} batteryKwh usable battery capacity
    */
-  function buildModel(readings, publicCharges) {
+  function buildModel(readings, publicCharges, batteryKwh) {
     const periods = [];
     for (let i = 1; i < readings.length; i++) {
       const open = readings[i - 1];
@@ -403,12 +436,17 @@
         if (readings[i].odo == null) continue;
         const km = readings[i].odo - readings[anchor].odo;
         if (km > 0) {
+          const socFrom = readings[anchor].soc, socTo = readings[i].soc;
+          const socAdjust = socFrom != null && socTo != null ? -((socTo - socFrom) / 100) * batteryKwh : 0;
+          const kwhUsed = Math.max(0, kwh + socAdjust);
           const span = {
             from: readings[anchor].date,
             to: readings[i].date,
             days: daysBetween(readings[anchor].date, readings[i].date),
             km, kwh, cost,
-            efficiency: (kwh / km) * 100,
+            socAdjust: kwhUsed - kwh,   // kWh added to (or taken off) the charged energy
+            kwhUsed,
+            efficiency: (kwhUsed / km) * 100,
           };
           spans.push(span);
           period.efficiency = span.efficiency;
@@ -421,8 +459,11 @@
     }
 
     /** Totals over spans: the basis for per-km figures. */
-    const driven = { km: 0, kwh: 0, cost: 0, days: 0 };
-    for (const s of spans) { driven.km += s.km; driven.kwh += s.kwh; driven.cost += s.cost; driven.days += s.days; }
+    const driven = { km: 0, kwh: 0, kwhUsed: 0, cost: 0, days: 0, corrected: 0 };
+    for (const s of spans) {
+      driven.km += s.km; driven.kwh += s.kwh; driven.kwhUsed += s.kwhUsed; driven.cost += s.cost; driven.days += s.days;
+      if (s.socAdjust) driven.corrected += 1;
+    }
 
     /** Totals over every closed period: the basis for money and energy figures. */
     const spent = { home: 0, public: 0, total: 0, days: 0, kwh: 0 };
@@ -513,6 +554,7 @@
       const kwhPerDay = period.kwhHome / period.days;
       const costPerDay = period.costHome / period.days;
       const kmPerDay = span ? span.km / span.days : 0;
+      const adjustPerDay = span && span.days ? span.socAdjust / span.days : 0;
       // Walk the period one month-slice at a time.
       for (let cursor = period.from; cursor < period.to;) {
         const next = startOfNextMonth(cursor);
@@ -525,7 +567,7 @@
         if (span) {
           month.odoDays += days;
           month.km += kmPerDay * days;
-          month.effKwh += kwhPerDay * days;
+          month.effKwh += (kwhPerDay + adjustPerDay) * days;
         }
         cursor = end;
       }
@@ -553,6 +595,134 @@
         const efficiency = m.km > 0 && m.odoDays >= MIN_DAYS_FOR_MONTH_EFFICIENCY ? (m.effKwh / m.km) * 100 : null;
         return { ...m, daysInMonth, partial: m.days < daysInMonth, efficiency };
       });
+  }
+
+  /** Average price paid per kWh in a month (home and public together), or null. */
+  function monthPricePerKwh(m) {
+    const kwh = m.kwhHome + m.kwhPublic;
+    return kwh > 0 ? (m.costHome + m.costPublic) / kwh : null;
+  }
+
+  /**
+   * Money saved against the petrol car in one month: the petrol for the
+   * month's km minus the electricity used for them, at the month's average
+   * price per kWh. Null when the month has no km.
+   */
+  function monthSaving(m, fuelPerKm) {
+    if (!(m.km > 0)) return null;
+    const price = monthPricePerKwh(m);
+    return price == null ? null : m.km * fuelPerKm - m.effKwh * price;
+  }
+
+  /**
+   * Calendar years built from the months.
+   * @returns {{year:string, days:number, daysInYear:number, partial:boolean, km:number,
+   *   kwhHome:number, kwhPublic:number, costHome:number, costPublic:number,
+   *   efficiency:(number|null), saving:number}[]} oldest first
+   */
+  function buildYears(months, fuelPerKm) {
+    const years = new Map();
+    for (const m of months) {
+      const key = m.key.slice(0, 4);
+      if (!years.has(key)) years.set(key, { year: key, days: 0, km: 0, effKwh: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, saving: 0 });
+      const y = years.get(key);
+      y.days += m.days; y.km += m.km; y.effKwh += m.effKwh;
+      y.kwhHome += m.kwhHome; y.kwhPublic += m.kwhPublic; y.costHome += m.costHome; y.costPublic += m.costPublic;
+      y.saving += monthSaving(m, fuelPerKm) || 0;
+    }
+    return [...years.values()].map((y) => {
+      const daysInYear = daysBetween(y.year + "-01-01", (+y.year + 1) + "-01-01");
+      return { ...y, daysInYear, partial: y.days < daysInYear, efficiency: y.km > 0 ? (y.effKwh / y.km) * 100 : null };
+    });
+  }
+
+  /**
+   * Public charges grouped by charging company. Names that differ only in
+   * spaces or letter case are one company, shown with its most used spelling.
+   * Every public charge is counted, including those not yet in a period.
+   * @returns {{name:string, count:number, kwh:number, cost:number}[]} biggest spend first
+   */
+  function buildProviders(publicCharges) {
+    const groups = new Map();
+    for (const p of publicCharges) {
+      const name = (p.provider || "").replace(/\s+/g, " ").trim();
+      const key = name.toLowerCase() || "";
+      if (!groups.has(key)) groups.set(key, { spellings: new Map(), count: 0, kwh: 0, cost: 0 });
+      const g = groups.get(key);
+      g.spellings.set(name, (g.spellings.get(name) || 0) + 1);
+      g.count += 1; g.kwh += p.kwh; g.cost += p.cost;
+    }
+    return [...groups.values()].map((g) => {
+      const name = [...g.spellings.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      return { name, count: g.count, kwh: g.kwh, cost: g.cost };
+    }).sort((a, b) => b.cost - a.cost);
+  }
+
+  /* ---------- Weather (daily mean temperature) ---------- */
+
+  const weather = {
+    /** { "YYYY-MM-DD": °C } */
+    days: (storage.get(WEATHER.storeKey) || {}).days || {},
+    fetchedOn: (storage.get(WEATHER.storeKey) || {}).fetchedOn || null,
+    from: (storage.get(WEATHER.storeKey) || {}).from || null,
+    /** "idle" | "loading" | "failed" */
+    status: "idle",
+  };
+
+  async function fetchDailyTemps(url, params) {
+    const query = new URLSearchParams({
+      latitude: WEATHER.latitude, longitude: WEATHER.longitude,
+      daily: "temperature_2m_mean", timezone: "Asia/Jerusalem", ...params,
+    });
+    const response = await fetch(url + "?" + query);
+    if (!response.ok) throw new Error("weather " + response.status);
+    const json = await response.json();
+    const result = {};
+    const dates = (json.daily && json.daily.time) || [];
+    const temps = (json.daily && json.daily.temperature_2m_mean) || [];
+    dates.forEach((d, i) => { if (temps[i] != null) result[d] = temps[i]; });
+    return result;
+  }
+
+  /**
+   * Makes sure the temperatures from `from` to today are loaded, at most once
+   * a day. The archive lags a few days behind, so the last weeks come from
+   * the forecast service's recent past. Calls onDone when new data arrived.
+   */
+  async function ensureWeather(from, onDone) {
+    const today = todayIso();
+    if (weather.status === "loading") return;
+    if (weather.fetchedOn === today && weather.from && weather.from <= from) return;
+    weather.status = "loading";
+    try {
+      const archiveEnd = new Date(toTime(today) - 7 * MS_PER_DAY).toISOString().slice(0, 10);
+      const days = { ...weather.days };
+      if (from <= archiveEnd) Object.assign(days, await fetchDailyTemps(WEATHER.archiveUrl, { start_date: from, end_date: archiveEnd }));
+      Object.assign(days, await fetchDailyTemps(WEATHER.recentUrl, { past_days: 30, forecast_days: 1 }));
+      for (const d of Object.keys(days)) if (d > today) delete days[d];
+      weather.days = days;
+      weather.fetchedOn = today;
+      weather.from = from;
+      weather.status = "idle";
+      storage.set(WEATHER.storeKey, { days, fetchedOn: today, from });
+      onDone();
+    } catch (err) {
+      weather.status = "failed";
+      onDone();
+    }
+  }
+
+  /**
+   * Mean temperature over the days of a month that the readings cover.
+   * @returns {number|null}
+   */
+  function monthTemperature(monthKey, firstDate, lastDate) {
+    let sum = 0, count = 0;
+    for (const [date, temp] of Object.entries(weather.days)) {
+      if (date.slice(0, 7) !== monthKey || date < firstDate || date >= lastDate) continue;
+      sum += temp; count += 1;
+    }
+    return count >= MIN_DAYS_FOR_MONTH_TEMP ? sum / count : null;
   }
 
   /* ======================================================================
@@ -604,20 +774,25 @@
   }
 
   /**
-   * Line chart of efficiency per span with a dashed line for the overall average.
+   * Line chart with an optional dashed line for the overall average.
    * @param {HTMLElement} el
    * @param {{label:string, value:number}[]} points
-   * @param {number} average
+   * @param {number|null} average
+   * @param {{decimals?:number, empty?:string, fromZero?:boolean}} [options]
    */
-  function drawEfficiencyChart(el, points, average) {
-    if (!points.length) { el.innerHTML = '<p class="empty">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>'; return; }
+  function drawLineChart(el, points, average, options = {}) {
+    const decimals = options.decimals ?? 1;
+    if (!points.length) { el.innerHTML = `<p class="empty">${options.empty || "יופיע כאן אחרי שתי מדידות עם קילומטראז׳."}</p>`; return; }
     points = points.slice(-CHART_MAX_POINTS);
     const width = Math.max(280, el.clientWidth || 600);
-    const left = 38, bottom = 26, top = 22;
+    const left = 44, bottom = 26, top = 22;
     const plotW = width - left - 24, plotH = CHART_HEIGHT - bottom - top;
-    const values = points.map((p) => p.value).concat(average);
-    const low = Math.max(0, Math.floor(Math.min(...values) - 2));
-    const high = Math.ceil(Math.max(...values) + 2);
+    const values = points.map((p) => p.value).concat(average != null ? [average] : []);
+    const min = Math.min(...values), max = Math.max(...values);
+    const pad = Math.max(2, (max - min) * 0.12);
+    let low = options.fromZero ? Math.min(0, min) : Math.max(0, Math.floor(min - pad));
+    let high = Math.ceil(max + pad);
+    if (high <= low) high = low + 1;
     const xAt = (i) => left + 12 + (points.length > 1 ? (plotW * i) / (points.length - 1) : plotW / 2);
     const yAt = (v) => top + plotH - (plotH * (v - low)) / (high - low);
 
@@ -626,18 +801,69 @@
       const v = low + ((high - low) * g) / 3;
       svg += gridLine(left, width - 8, yAt(v), formatNumber(v, 0));
     }
-    svg += `<line x1="${left}" x2="${width - 8}" y1="${yAt(average)}" y2="${yAt(average)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    if (average != null) svg += `<line x1="${left}" x2="${width - 8}" y1="${yAt(average)}" y2="${yAt(average)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     if (points.length > 1) {
       const path = points.map((p, i) => (i ? "L" : "M") + xAt(i) + " " + yAt(p.value)).join(" ");
-      svg += `<path d="${path} L${xAt(points.length - 1)} ${top + plotH} L${xAt(0)} ${top + plotH} Z" fill="var(--accent-soft)" stroke="none"/>`;
+      const floor = yAt(Math.max(low, 0));
+      svg += `<path d="${path} L${xAt(points.length - 1)} ${floor} L${xAt(0)} ${floor} Z" fill="var(--accent-soft)" stroke="none"/>`;
       svg += `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
     }
+    // On a narrow screen, label every n-th month (always the latest) so labels do not overlap.
+    const every = Math.max(1, Math.ceil(36 / (plotW / Math.max(1, points.length - 1))));
     points.forEach((p, i) => {
       const isLast = i === points.length - 1;
+      const labelled = (points.length - 1 - i) % every === 0;
       svg += `<circle cx="${xAt(i)}" cy="${yAt(p.value)}" r="${isLast ? 5.5 : 4}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
-      svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" font-size="11" font-weight="${isLast ? 700 : 500}" fill="var(--fg)">${formatNumber(p.value, 1)}</text>`;
-      svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+      if (labelled) svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" font-size="11" font-weight="${isLast ? 700 : 500}" fill="var(--fg)">${formatNumber(p.value, decimals)}</text>`;
+      if (labelled) svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
     });
+    el.innerHTML = svg + "</svg>";
+  }
+
+  /**
+   * Scatter chart: consumption (y) against average temperature (x), one dot
+   * per month, with a least-squares trend line once there are 3 dots.
+   * @param {HTMLElement} el
+   * @param {{label:string, temp:number, value:number}[]} points
+   */
+  function drawScatterChart(el, points) {
+    const width = Math.max(280, el.clientWidth || 600);
+    const left = 44, bottom = 34, top = 18, right = 16;
+    const plotW = width - left - right, plotH = CHART_HEIGHT - bottom - top;
+    const temps = points.map((p) => p.temp), values = points.map((p) => p.value);
+    const tLow = Math.floor(Math.min(...temps) - 2), tHigh = Math.ceil(Math.max(...temps) + 2);
+    const vLow = Math.max(0, Math.floor(Math.min(...values) - 2)), vHigh = Math.ceil(Math.max(...values) + 2);
+    // Temperature grows to the right, as on a thermometer scale, also in a right-to-left page.
+    const xAt = (t) => left + (plotW * (t - tLow)) / (tHigh - tLow);
+    const yAt = (v) => top + plotH - (plotH * (v - vLow)) / (vHigh - vLow);
+
+    let svg = svgOpen(width, CHART_HEIGHT);
+    for (let g = 0; g <= 3; g++) {
+      const v = vLow + ((vHigh - vLow) * g) / 3;
+      svg += gridLine(left, width - right, yAt(v), formatNumber(v, 0));
+    }
+    const tStep = Math.max(1, Math.round((tHigh - tLow) / 5));
+    for (let t = tLow; t <= tHigh; t += tStep) {
+      svg += `<text x="${xAt(t)}" y="${CHART_HEIGHT - 18}" text-anchor="middle" font-size="11" fill="var(--muted)">${t}°</text>`;
+    }
+    svg += `<text x="${left + plotW / 2}" y="${CHART_HEIGHT - 3}" text-anchor="middle" font-size="11" fill="var(--muted)">טמפרטורה ממוצעת בחודש</text>`;
+    if (points.length >= 3) {
+      const n = points.length;
+      const mt = temps.reduce((a, b) => a + b, 0) / n, mv = values.reduce((a, b) => a + b, 0) / n;
+      const sxx = temps.reduce((a, t) => a + (t - mt) ** 2, 0);
+      if (sxx > 0) {
+        const slope = points.reduce((a, p) => a + (p.temp - mt) * (p.value - mv), 0) / sxx;
+        const at = (t) => Math.min(vHigh, Math.max(vLow, mv + slope * (t - mt)));
+        svg += `<line x1="${xAt(tLow)}" x2="${xAt(tHigh)}" y1="${yAt(at(tLow))}" y2="${yAt(at(tHigh))}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+      }
+    }
+    // Month names only while they fit; a tap or hover on a dot always shows its details.
+    const labelled = points.length <= 6 || width >= 700;
+    for (const p of points) {
+      svg += `<circle cx="${xAt(p.temp)}" cy="${yAt(p.value)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2">` +
+        `<title>${p.label}: ${formatNumber(p.temp, 1)}°, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ</title></circle>`;
+      if (labelled) svg += `<text x="${xAt(p.temp)}" y="${yAt(p.value) - 9}" text-anchor="middle" font-size="10" fill="var(--fg)">${p.label}</text>`;
+    }
     el.innerHTML = svg + "</svg>";
   }
 
@@ -667,7 +893,7 @@
 
   function renderOverview(model, months) {
     const { driven, spent, pending, spans } = model;
-    const efficiency = driven.km ? (driven.kwh / driven.km) * 100 : null;
+    const efficiency = driven.km ? (driven.kwhUsed / driven.km) * 100 : null;
     const costPerKm = driven.km ? driven.cost / driven.km : null;
     const fuelPerKm = (state.settings.fuelL100 / 100) * state.settings.fuelPrice;
     const saved = driven.km ? driven.km * fuelPerKm - driven.cost : null;
@@ -693,7 +919,7 @@
     $("cost-split").textContent = splitText;
 
     const effMonths = months.filter((m) => m.efficiency != null).slice(-CHART_MAX_POINTS);
-    drawEfficiencyChart($("c-eff"), effMonths.map((m, i) => ({ label: monthLabel(m.key, i === 0), value: m.efficiency })), efficiency || 0);
+    drawLineChart($("c-eff"), effMonths.map((m, i) => ({ label: monthLabel(m.key, i === 0), value: m.efficiency })), efficiency || 0);
     const trend = $("trend");
     trend.textContent = "";
     trend.className = "";
@@ -703,6 +929,10 @@
       trend.className = "pill " + (change <= 0 ? "good" : "warn");
       trend.textContent = monthName(lastFullEff.key) + ": " + formatNumber(Math.abs(change), 0) + "% " + (change <= 0 ? "מתחת לממוצע" : "מעל הממוצע");
     }
+
+    renderExtraCharts(model, months, fuelPerKm);
+    renderTemperature(months);
+    renderProviders(model);
 
     const facts = $("facts");
     if (driven.km) {
@@ -724,7 +954,7 @@
         ["תחזית חיסכון לשנה", formatNumber(yearKm * fuelPerKm - yearKm * costPerKm) + " ₪"],
       ];
       facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
-      $("facts-note").textContent = "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) +
+      $("facts-note").textContent = (driven.corrected ? "הצריכה מתוקנת לפי אחוז הסוללה ב‑" + driven.corrected + " מתוך " + spans.length + " תקופות. " : "") + "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) +
         " ליטר ל‑100 ק״מ ובנזין ב‑" + formatNumber(state.settings.fuelPrice, 2) +
         " ₪ לליטר. אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
     } else {
@@ -737,7 +967,7 @@
     for (const s of spans) {
       const month = new Date((toTime(s.from) + toTime(s.to)) / 2).getUTCMonth() + 1;
       const name = month >= 6 && month <= 9 ? "קיץ" : month === 12 || month <= 2 ? "חורף" : "עונות מעבר";
-      seasons[name].kwh += s.kwh;
+      seasons[name].kwh += s.kwhUsed;
       seasons[name].km += s.km;
     }
     const withData = Object.keys(seasons).filter((name) => seasons[name].km > 0);
@@ -747,8 +977,117 @@
       .join("");
   }
 
+  /** Cost per 100 km, cumulative savings and the public share, month by month. */
+  function renderExtraCharts(model, months, fuelPerKm) {
+    const { driven } = model;
+    const withEff = months.filter((m) => m.efficiency != null);
+    const cost100 = withEff.map((m) => ({ key: m.key, value: (m.efficiency * monthPricePerKwh(m)) || 0 }));
+    drawLineChart($("c-cost100"), cost100.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+      driven.km ? (driven.cost / driven.km) * 100 : null, { decimals: 0 });
+
+    let running = 0;
+    const cumulative = [];
+    for (const m of months) {
+      const saving = monthSaving(m, fuelPerKm);
+      if (saving == null) continue;
+      running += saving;
+      cumulative.push({ key: m.key, value: running });
+    }
+    drawLineChart($("c-saving"), cumulative.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+      null, { decimals: 0, fromZero: true });
+
+    const share = months.filter((m) => m.costHome + m.costPublic > 0)
+      .map((m) => ({ key: m.key, value: (m.costPublic / (m.costHome + m.costPublic)) * 100 }));
+    const totalShare = model.spent.total ? (model.spent.public / model.spent.total) * 100 : null;
+    drawLineChart($("c-share"), share.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+      totalShare, { decimals: 0, fromZero: true, empty: "יופיע כאן אחרי שתי מדידות." });
+    $("share-note").textContent = totalShare != null
+      ? "בכל התקופה " + formatNumber(totalShare, 0) + "% מההוצאה על חשמל היו טעינה ציבורית."
+      : "";
+  }
+
+  /** Consumption against the month's average temperature in Beit Yehoshua. */
+  function renderTemperature(months) {
+    const el = $("c-temp");
+    const note = $("temp-note");
+    if (state.readings.length < 2) {
+      el.innerHTML = '<p class="empty">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>';
+      note.textContent = "";
+      return;
+    }
+    const first = state.readings[0].date;
+    const last = state.readings[state.readings.length - 1].date;
+    ensureWeather(first, () => { if (!$("v-overview").hidden) renderTemperature(lastMonths); });
+    const points = months
+      .filter((m) => m.efficiency != null)
+      .map((m) => ({ label: monthLabel(m.key, true), temp: monthTemperature(m.key, first, last), value: m.efficiency }))
+      .filter((p) => p.temp != null);
+    if (points.length) {
+      drawScatterChart(el, points);
+      note.textContent = "כל נקודה היא חודש" + (points.length > 6 ? ". במחשב, ריחוף מעל נקודה מראה איזה חודש" : "") + ". הקו המקווקו הוא המגמה" + (points.length < 3 ? ", והוא יופיע מ‑3 חודשים ומעלה" : "") +
+        ". הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
+    } else if (weather.status === "loading") {
+      el.innerHTML = '<p class="empty">טוען נתוני מזג אוויר…</p>';
+      note.textContent = "";
+    } else if (weather.status === "failed" && !Object.keys(weather.days).length) {
+      el.innerHTML = '<p class="empty">לא הצלחתי לטעון נתוני מזג אוויר. זה יעבוד כשיהיה חיבור לאינטרנט.</p>';
+      note.textContent = "";
+    } else {
+      el.innerHTML = '<p class="empty">יופיע כאן כשיהיה חודש עם צריכה ידועה.</p>';
+      note.textContent = "";
+    }
+  }
+
+  /** Public charging per company, inside a collapsed section. */
+  function renderProviders(model) {
+    const providers = buildProviders(state.publicCharges);
+    $("prov-panel").hidden = !providers.length;
+    if (!providers.length) return;
+    const total = providers.reduce((sum, p) => sum + p.cost, 0);
+    const homeKwh = model.periods.reduce((sum, p) => sum + p.kwhHome, 0);
+    const homePrice = homeKwh ? model.spent.home / homeKwh : null;
+    const header = "<tr><th>חברה</th><th>טעינות</th><th>קוט״ש</th><th>סה״כ ₪</th><th>₪ לקוט״ש</th><th>מההוצאה הציבורית</th></tr>";
+    const rows = providers.map((p) =>
+      `<tr><td>${escapeHtml(p.name) || "ללא שם חברה"}</td><td>${p.count}</td><td>${formatNumber(p.kwh, 1)}</td>` +
+      `<td>${formatNumber(p.cost)}</td><td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td>` +
+      `<td>${total ? formatNumber((p.cost / total) * 100, 0) + "%" : "–"}</td></tr>`).join("");
+    const homeRow = homePrice != null
+      ? `<tr class="muted-row"><td>טעינה ביתית, להשוואה</td><td>–</td><td>${formatNumber(homeKwh, 1)}</td><td>${formatNumber(model.spent.home)}</td><td>${formatNumber(homePrice, 2)}</td><td>–</td></tr>`
+      : "";
+    $("t-providers").innerHTML = header + rows + homeRow;
+    $("prov-summary").textContent = "ניתוח לפי חברת טעינה (" + providers.length + (providers.length === 1 ? " חברה)" : " חברות)");
+  }
+
+  /** One row per calendar year. */
+  function renderYears(months, fuelPerKm) {
+    const years = buildYears(months, fuelPerKm);
+    $("years-panel").hidden = !years.length;
+    if (!years.length) return;
+    const header = "<tr><th>שנה</th><th>ימים</th><th>ק״מ</th><th>קוט״ש</th><th>עלות בית ₪</th><th>עלות ציבורי ₪</th>" +
+      "<th>סה״כ ₪</th><th>קוט״ש/100</th><th>חיסכון מול בנזין ₪</th><th>שינוי בעלות ליום</th></tr>";
+    const rows = years.map((y, i) => {
+      const total = y.costHome + y.costPublic;
+      const previous = years[i - 1];
+      let change = "–";
+      if (previous && previous.days && y.days) {
+        const perDayNow = total / y.days, perDayBefore = (previous.costHome + previous.costPublic) / previous.days;
+        if (perDayBefore > 0) {
+          const pct = ((perDayNow - perDayBefore) / perDayBefore) * 100;
+          change = (pct > 0 ? "עלייה של " : "ירידה של ") + formatNumber(Math.abs(pct), 0) + "%";
+        }
+      }
+      return `<tr><td>${y.year}</td><td>${y.partial ? y.days + " מתוך " + y.daysInYear + " (חלקית)" : y.days}</td>` +
+        `<td>${y.km ? formatNumber(y.km) : "–"}</td><td>${formatNumber(y.kwhHome + y.kwhPublic)}</td>` +
+        `<td>${formatNumber(y.costHome)}</td><td>${y.costPublic ? formatNumber(y.costPublic) : "–"}</td>` +
+        `<td><strong>${formatNumber(total)}</strong></td><td>${y.efficiency != null ? formatNumber(y.efficiency, 1) : "–"}</td>` +
+        `<td>${y.km ? formatNumber(y.saving) : "–"}</td><td>${change}</td></tr>`;
+    }).reverse().join("");
+    $("t-years").innerHTML = header + rows;
+  }
+
   function renderHistory(model, months) {
     const { periods } = model;
+    renderYears(months, (state.settings.fuelL100 / 100) * state.settings.fuelPrice);
 
     if (months.length) {
       const header = "<tr><th>חודש</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th>" +
@@ -789,8 +1128,8 @@
     if (state.readings.length) {
       const rows = state.readings.map((r, i) =>
         `<tr><td>${formatDate(r.date)}</td><td>${formatNumber(r.meter, 2)}</td><td>${r.odo != null ? formatNumber(r.odo) : "חסר"}</td>` +
-        `<td>${formatNumber(priceForReading(state.readings, i), 4)}</td><td>${deleteButton("readings/" + r.date)}</td></tr>`);
-      $("t-readings").innerHTML = "<tr><th>תאריך</th><th>מונה קוט״ש</th><th>קילומטראז׳</th><th>₪ לקוט״ש</th><th></th></tr>" + rows.reverse().join("");
+        `<td>${formatNumber(priceForReading(state.readings, i), 4)}</td><td>${r.soc != null ? formatNumber(r.soc) + "%" : "–"}</td><td>${deleteButton("readings/" + r.date)}</td></tr>`);
+      $("t-readings").innerHTML = "<tr><th>תאריך</th><th>מונה קוט״ש</th><th>קילומטראז׳</th><th>₪ לקוט״ש</th><th>סוללה</th><th></th></tr>" + rows.reverse().join("");
     } else {
       $("t-readings").innerHTML = '<tr><td class="empty">עוד אין מדידות.</td></tr>';
     }
@@ -819,15 +1158,20 @@
     if (!priceInput.dataset.touched && document.activeElement !== priceInput) priceInput.value = latestPrice();
     if (document.activeElement !== $("s-price")) $("s-price").value = state.settings.fuelPrice;
     if (document.activeElement !== $("s-l100")) $("s-l100").value = state.settings.fuelL100;
+    if (document.activeElement !== $("s-battery")) $("s-battery").value = state.settings.batteryKwh;
     // Suggest providers the user has typed before.
     const providers = [...new Set(state.publicCharges.map((p) => p.provider).filter(Boolean))].sort();
     $("providers").innerHTML = providers.map((name) => `<option value="${escapeHtml(name)}"></option>`).join("");
   }
 
+  /** The months of the latest render, for redraws that only need them (weather arriving). */
+  let lastMonths = [];
+
   /** Redraws every screen from the current state. */
   function render() {
-    const model = buildModel(state.readings, state.publicCharges);
+    const model = buildModel(state.readings, state.publicCharges, state.settings.batteryKwh);
     const months = buildMonths(state.readings, state.publicCharges, model);
+    lastMonths = months;
     renderStatus();
     renderOverview(model, months);
     renderHistory(model, months);
@@ -889,10 +1233,13 @@
     const anchor = [...state.readings].reverse().find((r) => r.date < date && r.odo != null);
     if (odo != null && anchor) {
       const km = odo - anchor.odo;
-      const kwhSinceAnchor = meter - anchor.meter +
+      let kwhSinceAnchor = meter - anchor.meter +
         state.publicCharges.filter((p) => p.date > anchor.date && p.date <= date).reduce((sum, p) => sum + p.kwh, 0);
+      const soc = inputNumber("r-soc");
+      if (soc != null && anchor.soc != null) kwhSinceAnchor = Math.max(0, kwhSinceAnchor - ((soc - anchor.soc) / 100) * state.settings.batteryKwh);
       text += " · " + formatNumber(km) + " ק״מ";
       if (km > 0) text += " · " + formatNumber((kwhSinceAnchor / km) * 100, 1) + " קוט״ש ל‑100 ק״מ";
+      if (km > 0 && soc != null && anchor.soc != null) text += " (מתוקן לפי אחוז הסוללה)";
       if (anchor !== previous) text += " (מחושב מאז " + formatDate(anchor.date) + ", המדידה האחרונה עם קילומטראז׳)";
     }
     el.textContent = text;
@@ -906,7 +1253,9 @@
     const meter = inputNumber("r-meter");
     const odo = inputNumber("r-odo");
     const price = inputNumber("r-price");
+    const soc = inputNumber("r-soc");
     if (!state.connected) return showMessage("r-msg", NOT_CONNECTED);
+    if (soc != null && !(soc >= 0 && soc <= 100)) return showMessage("r-msg", "אחוז הסוללה צריך להיות בין 0 ל‑100.");
     if (!date || meter == null || !isFinite(meter)) return showMessage("r-msg", "צריך תאריך וקריאת מונה.");
     if (date > todayIso()) return showMessage("r-msg", "התאריך בעתיד.");
     if (!(price > 0) || price > MAX_PRICE_PER_KWH) return showMessage("r-msg", "צריך מחיר לקוט״ש בשקלים, למשל 0.5451.");
@@ -923,12 +1272,13 @@
       // A reading is identified by its date, so saving the same date again corrects it.
       await mutate((draft) => {
         draft.readings = draft.readings.filter((r) => r.date !== date);
-        draft.readings.push({ date, meter, odo, price });
+        draft.readings.push({ date, meter, odo, price, soc });
       });
       delete $("r-price").dataset.touched;
       showMessage("r-msg", "המדידה נשמרה." + (odo == null ? " בלי קילומטראז׳ הצריכה תחושב יחד עם התקופה הבאה." : ""), true);
       $("r-meter").value = "";
       $("r-odo").value = "";
+      $("r-soc").value = "";
       renderReadingPreview();
     } catch (err) {
       showMessage("r-msg", describeSaveError(err));
@@ -961,10 +1311,23 @@
     if (!state.connected) return showMessage("s-msg", NOT_CONNECTED);
     if (!(fuelPrice > 0) || !(fuelL100 > 0)) return showMessage("s-msg", "שני הערכים צריכים להיות גדולים מאפס.");
     try {
-      await mutate((draft) => { draft.settings = { fuelPrice, fuelL100 }; });
+      await mutate((draft) => { draft.settings = { ...draft.settings, fuelPrice, fuelL100 }; });
       showMessage("s-msg", "נשמר.", true);
     } catch (err) {
       showMessage("s-msg", describeSaveError(err));
+    }
+  }
+
+  async function onSubmitCarSettings(event) {
+    event.preventDefault();
+    const batteryKwh = inputNumber("s-battery");
+    if (!state.connected) return showMessage("c-msg", NOT_CONNECTED);
+    if (!(batteryKwh >= MIN_BATTERY_KWH && batteryKwh <= MAX_BATTERY_KWH)) return showMessage("c-msg", "קיבולת הסוללה צריכה להיות בין " + MIN_BATTERY_KWH + " ל‑" + MAX_BATTERY_KWH + " קוט״ש.");
+    try {
+      await mutate((draft) => { draft.settings = { ...draft.settings, batteryKwh }; });
+      showMessage("c-msg", "נשמר.", true);
+    } catch (err) {
+      showMessage("c-msg", describeSaveError(err));
     }
   }
 
@@ -1087,6 +1450,7 @@
     { key: "provider", header: "חברה", aliases: ["provider", "company"] },
     { key: "note", header: "הערה", aliases: ["note"] },
     { key: "id", header: "מזהה", aliases: ["id"] },
+    { key: "soc", header: "אחוז סוללה", aliases: ["סוללה", "soc", "battery"] },
   ];
   const TYPE_READING = "מדידה";
   const TYPE_PUBLIC = "טעינה ציבורית";
@@ -1097,8 +1461,8 @@
   /** Builds the CSV text for the given data (UTF-8 with BOM so Excel shows Hebrew correctly). */
   function toCsv(data) {
     const rows = [CSV_COLUMNS.map((c) => c.header)];
-    for (const r of data.readings) rows.push([TYPE_READING, r.date, r.meter, r.odo ?? "", r.price ?? "", "", "", "", "", ""]);
-    for (const p of data.publicCharges) rows.push([TYPE_PUBLIC, p.date, "", "", "", p.kwh, p.cost, p.provider || "", p.note || "", p.id]);
+    for (const r of data.readings) rows.push([TYPE_READING, r.date, r.meter, r.odo ?? "", r.price ?? "", "", "", "", "", "", r.soc ?? ""]);
+    for (const p of data.publicCharges) rows.push([TYPE_PUBLIC, p.date, "", "", "", p.kwh, p.cost, p.provider || "", p.note || "", p.id, ""]);
     const quote = (cell) => '"' + String(cell).replace(/"/g, '""') + '"';
     return "﻿" + rows.map((row) => row.map(quote).join(",")).join("\r\n");
   }
@@ -1160,7 +1524,7 @@
       if (!Array.isArray(json.readings) && !Array.isArray(json.public)) throw new Error("בקובץ ה‑JSON חסרות הרשימות readings ו‑public.");
       readings.forEach((raw, i) => accept("reading", raw, "readings[" + i + "]"));
       charges.forEach((raw, i) => accept("public", raw, "public[" + i + "]"));
-      if (json.settings && (json.settings.fuelPrice > 0 || json.settings.fuelL100 > 0)) result.settings = json.settings;
+      if (json.settings && (json.settings.fuelPrice > 0 || json.settings.fuelL100 > 0 || json.settings.batteryKwh > 0)) result.settings = json.settings;
       return result;
     }
 
@@ -1218,10 +1582,12 @@
     const same = (a, b, keys) => keys.every((k) => (a[k] ?? null) === (b[k] ?? null));
 
     const readings = new Map(current.readings.map((r) => [r.date, { ...r }]));
-    for (const item of incoming.readings) {
+    for (let item of incoming.readings) {
       const existing = readings.get(item.date);
+      // Older files have no battery column: an empty value keeps the stored one.
+      if (existing && item.soc == null && existing.soc != null) item = { ...item, soc: existing.soc };
       if (!existing) counts.readings.added += 1;
-      else if (same(existing, item, ["meter", "odo", "price"])) { counts.readings.unchanged += 1; continue; }
+      else if (same(existing, item, ["meter", "odo", "price", "soc"])) { counts.readings.unchanged += 1; continue; }
       else counts.readings.updated += 1;
       readings.set(item.date, { ...item });
     }
@@ -1243,8 +1609,9 @@
 
     const settings = { ...current.settings };
     if (incoming.settings) {
-      for (const key of ["fuelPrice", "fuelL100"]) {
+      for (const key of ["fuelPrice", "fuelL100", "batteryKwh"]) {
         const value = Number(incoming.settings[key]);
+        if (key === "batteryKwh" && !(value >= MIN_BATTERY_KWH && value <= MAX_BATTERY_KWH)) continue;
         if (value > 0 && value !== settings[key]) { settings[key] = value; counts.settingsChanged = true; }
       }
     }
@@ -1281,7 +1648,7 @@
   /** A small, valid CSV the user can open in Excel and fill in. */
   function templateCsv() {
     return toCsv({
-      readings: [{ date: "2026-10-01", meter: 4350.2, odo: 56200, price: 0.5451 }],
+      readings: [{ date: "2026-10-01", meter: 4350.2, odo: 56200, price: 0.5451, soc: 80 }],
       publicCharges: [{ id: "", date: "2026-10-12", kwh: 32.5, cost: 61, provider: "שם החברה", note: "נסיעה לצפון" }],
     });
   }
@@ -1323,7 +1690,7 @@
       "מדידות: " + describeCounts(plan.counts.readings) + ".",
       "טעינות ציבוריות: " + describeCounts(plan.counts.publicCharges) + ".",
     ];
-    if (plan.counts.settingsChanged) lines.push("הגדרות רכב הבנזין להשוואה יעודכנו לפי הקובץ.");
+    if (plan.counts.settingsChanged) lines.push("ההגדרות, רכב הבנזין וקיבולת הסוללה, יעודכנו לפי הקובץ.");
     lines.push("רשומות קיימות שלא מופיעות בקובץ נשארות ללא שינוי.");
     for (const warning of plan.warnings) lines.push("שים לב: " + warning);
     if (parsed.rejected.length) {
@@ -1578,6 +1945,7 @@
     $("f-reading").addEventListener("submit", onSubmitReading);
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
     $("f-fuel").addEventListener("submit", onSubmitFuelSettings);
+    $("f-car").addEventListener("submit", onSubmitCarSettings);
     document.addEventListener("click", onClickDelete);
 
     $("export").addEventListener("click", () => downloadFile("zeekr-electric-" + todayIso() + ".csv", toCsv(state), "text/csv"));
