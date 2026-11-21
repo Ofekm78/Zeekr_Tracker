@@ -24,17 +24,22 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
   <!-- Installs as a full-screen app, separate from the main one (own name, black symbol-only icon). -->
   <link rel="manifest" href="manifest.webmanifest?v=6">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.5.1">
+  <!-- Fetched early so the opening screen shows its logo at once. -->
+  <link rel="preload" href="icons/splash.webp?v=2" as="image" fetchpriority="high">
+  <!-- Fonts load without holding up the first screen; text shows in the system
+       font for a moment and switches when they arrive (display=swap). -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="styles.css?v=2.5.2">
   <script src="app.js?v=2.5" defer></script>
 </head>
 <body>
 
-<!-- Opening screen, trial page only: the full logo for 5 seconds when the page is
+<!-- Opening screen, trial page only: the full logo for 2.5 seconds when the page is
      opened as the installed app. Shown once per launch (not again after the
      Microsoft sign-in returns to the page); a tap closes it early. -->
 <div class="splash" id="splash" hidden>
-  <img src="icons/splash.png?v=1" alt="ZEEKR TRACKER">
+  <img src="icons/splash.webp?v=2" alt="ZEEKR TRACKER" fetchpriority="high">
 </div>
 <script>
   (function () {
@@ -48,7 +53,7 @@
       el.classList.add("splash-out");
       setTimeout(function () { el.hidden = true; }, 400);
     }
-    var timer = setTimeout(close, 5000);
+    var timer = setTimeout(close, 2500);
     el.addEventListener("click", function () { clearTimeout(timer); close(); });
   })();
 </script>
