@@ -293,5 +293,13 @@
   </section>
 </div>
 
+<!-- Keeps the app's own files on the phone so it opens instantly; see sw.js. -->
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* app still works without it */ });
+    });
+  }
+</script>
 </body>
 </html>
