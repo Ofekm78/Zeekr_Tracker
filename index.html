@@ -19,15 +19,43 @@
   <meta name="apple-mobile-web-app-title" content="ZEEKR TRACKER">
   <!-- Home-screen icon. Phones copy it when the shortcut is created, so an
        existing shortcut keeps its old icon until it is removed and added again. -->
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=5">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=5">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=5">
-  <link rel="manifest" href="manifest.webmanifest?v=5">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2.4">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=6">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=6">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=6">
+  <link rel="manifest" href="manifest.webmanifest?v=6">
+  <!-- Fetched early so the opening screen shows its logo at once. -->
+  <link rel="preload" href="icons/splash.webp?v=2" as="image" fetchpriority="high">
+  <!-- Fonts load without holding up the first screen; text shows in the system
+       font for a moment and switches when they arrive (display=swap). -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&family=Rubik:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="styles.css?v=2.4.1">
   <script src="app.js?v=2.4" defer></script>
 </head>
 <body>
+
+<!-- Opening screen: the full logo for 2.5 seconds when the page is
+     opened as the installed app. Shown once per launch (not again after the
+     Microsoft sign-in returns to the page); a tap closes it early. -->
+<div class="splash" id="splash" hidden>
+  <img src="icons/splash.webp?v=2" alt="ZEEKR TRACKER" fetchpriority="high">
+</div>
+<script>
+  (function () {
+    var el = document.getElementById("splash");
+    var app = window.matchMedia && matchMedia("(display-mode: standalone)").matches;
+    var seen = false;
+    try { seen = sessionStorage.getItem("zk-splash") === "1"; sessionStorage.setItem("zk-splash", "1"); } catch (e) { /* storage unavailable */ }
+    if (!app || seen) return;
+    el.hidden = false;
+    function close() {
+      el.classList.add("splash-out");
+      setTimeout(function () { el.hidden = true; }, 400);
+    }
+    var timer = setTimeout(close, 2500);
+    el.addEventListener("click", function () { clearTimeout(timer); close(); });
+  })();
+</script>
 
 <div class="wrap">
   <header class="head">
@@ -259,5 +287,13 @@
   </section>
 </div>
 
+<!-- Keeps the app's own files on the phone so it opens instantly; see sw.js. -->
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* app still works without it */ });
+    });
+  }
+</script>
 </body>
 </html>

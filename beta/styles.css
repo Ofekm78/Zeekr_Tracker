@@ -209,7 +209,7 @@ td.footnote { white-space: normal; color: var(--muted); }
 /* File samples are shown left-to-right exactly as they appear in a text editor. */
 .guide pre { margin: 0; direction: ltr; text-align: left; font-family: var(--mono); font-size: 0.8rem; line-height: 1.5; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
 
-/* Opening screen (trial page, installed app only): see the splash block in index.html. */
+/* Opening screen (installed app only): see the splash block in index.html. */
 .splash {
   position: fixed;
   inset: 0;

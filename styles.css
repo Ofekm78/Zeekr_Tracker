@@ -208,3 +208,18 @@ td.footnote { white-space: normal; color: var(--muted); }
 .guide code { font-family: var(--mono); font-size: 0.85rem; background: var(--bg); border-radius: 4px; padding: 1px 5px; direction: ltr; unicode-bidi: isolate; }
 /* File samples are shown left-to-right exactly as they appear in a text editor. */
 .guide pre { margin: 0; direction: ltr; text-align: left; font-family: var(--mono); font-size: 0.8rem; line-height: 1.5; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+
+/* Opening screen (installed app only): see the splash block in index.html. */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 1;
+  transition: opacity .4s ease;
+}
+.splash img { width: min(72vw, 360px); height: auto; aspect-ratio: 720 / 731; }
+.splash-out { opacity: 0; pointer-events: none; }

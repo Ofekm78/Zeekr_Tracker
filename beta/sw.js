@@ -20,6 +20,7 @@
 const CACHE_VERSION = 1;
 const CACHE = "zk-beta-v" + CACHE_VERSION;
 const SCOPE = self.registration.scope; // e.g. https://<site>/Zeekr_Tracker/beta/
+const SKIP = "";
 
 self.addEventListener("install", (event) => {
   // Cache the page itself right away so the next launch is instant.
@@ -38,10 +39,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || !request.url.startsWith(SCOPE)) return; // network as usual
+  if (SKIP && request.url.startsWith(SCOPE + SKIP)) return; // another copy with its own cache
 
-  // Any page navigation (including the return from Microsoft sign-in with
-  // ?code=... in the address) is the same page: index.html, stored under SCOPE.
+  // Opening the page (including the return from Microsoft sign-in with
+  // ?code=... in the address) is always index.html, stored under SCOPE.
+  const path = request.url.split(/[?#]/)[0];
   const isPage = request.mode === "navigate";
+  if (isPage && path !== SCOPE && path !== SCOPE + "index.html") return;
   const key = isPage ? SCOPE : request;
 
   event.respondWith((async () => {
