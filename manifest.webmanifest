@@ -1,8 +1,6 @@
 {
-  "name": "מעקב חשמל Zeekr",
-  "short_name": "מעקב חשמל",
-  "lang": "he",
-  "dir": "rtl",
+  "name": "ZEEKR TRACKER",
+  "short_name": "ZEEKR TRACKER",
   "start_url": "./",
   "scope": "./",
   "display": "browser",
