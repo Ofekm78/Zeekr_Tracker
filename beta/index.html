@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.1">
-  <script src="app.js?v=3.1" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.2">
+  <script src="app.js?v=3.2" defer></script>
 </head>
 <body>
 
@@ -186,15 +186,23 @@
       <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית. הטעינה נשמרת כרשומה נפרדת ומתווספת לעלות של התקופה שבה היא נמצאת, בלי לשנות את המדידות הביתיות.</p>
       <form id="f-public" novalidate>
         <label>תאריך<input type="date" id="p-date" required></label>
-        <label>חברת הטעינה<input type="text" id="p-provider" maxlength="60" list="providers" placeholder="שם החברה שמפעילה את העמדה"></label>
+        <!-- Charging company: a list with each company's symbol (a native select cannot show images).
+             The chosen name goes into the hidden #p-provider; "אחר" opens a free-text field. -->
+        <div class="field">
+          <span class="field-label" id="p-provider-label">חברת הטעינה</span>
+          <div class="picker">
+            <button type="button" class="picker-btn" id="p-provider-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="p-provider-label p-provider-btn"></button>
+            <ul class="picker-list" id="p-provider-list" role="listbox" aria-labelledby="p-provider-label" tabindex="-1" hidden></ul>
+          </div>
+          <input type="hidden" id="p-provider">
+          <input type="text" id="p-provider-other" maxlength="60" placeholder="שם החברה" aria-label="שם חברת הטעינה" hidden>
+        </div>
         <label>קוט״ש שנטענו<input type="number" inputmode="decimal" step="any" id="p-kwh" placeholder="למשל 32.5" required></label>
         <label>עלות הטעינה כולה (₪)<input type="number" inputmode="decimal" step="any" id="p-cost" placeholder="למשל 61" required></label>
         <label class="full">הערה (לא חובה)<input type="text" id="p-note" maxlength="120" placeholder="מיקום העמדה, נסיעה לצפון…"></label>
         <button class="btn full" type="submit">שמור טעינה</button>
         <p class="msg full" id="p-msg" role="status"></p>
       </form>
-      <!-- Filled by app.js with the providers already used, as typing suggestions. -->
-      <datalist id="providers"></datalist>
     </div>
   </section>
 

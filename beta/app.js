@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.1";
+  const APP_VERSION = "3.2";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -136,6 +136,26 @@
    */
   const FUEL_PRICES_URL = (IS_BETA ? "../" : "") + "data/fuel-prices.json";
   const FUEL_PRICES_KEY = "zk-fuel-prices";
+  /**
+   * Charging companies offered in the public-charge form, in Ofek's order;
+   * the first is the default. `name` is what gets saved. `aliases` let names
+   * typed before the list existed (or in English) count as the same company;
+   * the saved names themselves are never rewritten.
+   * Symbols: the companies' official app icons (Paz: the icon on paz.co.il).
+   */
+  const PROVIDERS = [
+    { id: "paz", name: "פז", aliases: ["paz", "פז charge", "פזcharge", "yellow"] },
+    { id: "sonol", name: "סונול", aliases: ["sonol", "סונול evi", "sonol evi", "evi"] },
+    { id: "on", name: "ON EV", aliases: ["on", "on-ev", "onev", "און", "אפקון", "afcon", "afcon ev"] },
+    { id: "delek", name: "דלק", aliases: ["delek"] },
+    { id: "gnrgy", name: "ג׳ינרג׳י", aliases: ["gnrgy", "gnrgy go", "ג'ינרג'י", "גינרגי", "ג׳ינרגי"] },
+    { id: "evedge", name: "אי.וי אדג׳", aliases: ["ev edge", "evedge", "אי וי אדג'", "איוי אדג"] },
+    { id: "evmeter", name: "אי.וי מטר", aliases: ["ev meter", "evmeter", "אי וי מטר", "איוי מטר"] },
+    { id: "tesla", name: "טסלה", aliases: ["tesla", "supercharger", "טסלה סופרצ'רג'ר", "סופרצ'רג'ר"] },
+  ];
+  const OTHER_PROVIDER = "other";
+  const providerIcon = (id) => "icons/providers/" + id + ".png?v=1";
+
   /** A month needs this many days with temperature data to appear in the chart. */
   const MIN_DAYS_FOR_MONTH_TEMP = 7;
   /** Sanity limit for a home price per kWh, in ILS. */
@@ -643,6 +663,20 @@
     });
   }
 
+  /** The listed company a saved name belongs to, or null. */
+  function findProvider(name) {
+    const key = simplify(name);
+    if (!key) return null;
+    return PROVIDERS.find((p) => simplify(p.name) === key || p.aliases.some((a) => simplify(a) === key)) || null;
+  }
+
+  /** A company name with its symbol in front, for tables. */
+  function providerLabel(name) {
+    const provider = findProvider(name);
+    if (!provider) return escapeHtml(name);
+    return `<span class="prov"><img src="${providerIcon(provider.id)}" alt="" width="20" height="20">${escapeHtml(provider.name)}</span>`;
+  }
+
   /**
    * Public charges grouped by charging company. Names that differ only in
    * spaces or letter case are one company, shown with its most used spelling.
@@ -652,8 +686,9 @@
   function buildProviders(publicCharges) {
     const groups = new Map();
     for (const p of publicCharges) {
-      const name = (p.provider || "").replace(/\s+/g, " ").trim();
-      const key = name.toLowerCase() || "";
+      const listed = findProvider(p.provider);
+      const name = listed ? listed.name : (p.provider || "").replace(/\s+/g, " ").trim();
+      const key = listed ? "#" + listed.id : name.toLowerCase();
       if (!groups.has(key)) groups.set(key, { spellings: new Map(), count: 0, kwh: 0, cost: 0 });
       const g = groups.get(key);
       g.spellings.set(name, (g.spellings.get(name) || 0) + 1);
@@ -1109,7 +1144,7 @@
     const homePrice = homeKwh ? model.spent.home / homeKwh : null;
     const header = "<tr><th>חברה</th><th>טעינות</th><th>קוט״ש</th><th>סה״כ ₪</th><th>₪ לקוט״ש</th><th>מההוצאה הציבורית</th></tr>";
     const rows = providers.map((p) =>
-      `<tr><td>${escapeHtml(p.name) || "ללא שם חברה"}</td><td>${p.count}</td><td>${formatNumber(p.kwh, 1)}</td>` +
+      `<tr><td>${p.name ? providerLabel(p.name) : "ללא שם חברה"}</td><td>${p.count}</td><td>${formatNumber(p.kwh, 1)}</td>` +
       `<td>${formatNumber(p.cost)}</td><td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td>` +
       `<td>${total ? formatNumber((p.cost / total) * 100, 0) + "%" : "–"}</td></tr>`).join("");
     const homeRow = homePrice != null
@@ -1204,7 +1239,7 @@
         return !last || charge.date > last.date ? "ממתינה למדידה הבאה" : "לפני תחילת המעקב";
       };
       const rows = state.publicCharges.slice().reverse().map((p) =>
-        `<tr><td>${formatDate(p.date)}</td><td>${escapeHtml(p.provider) || "–"}</td><td>${formatNumber(p.kwh, 1)}</td><td>${formatNumber(p.cost, 2)}</td>` +
+        `<tr><td>${formatDate(p.date)}</td><td>${p.provider ? providerLabel(p.provider) : "–"}</td><td>${formatNumber(p.kwh, 1)}</td><td>${formatNumber(p.cost, 2)}</td>` +
         `<td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td><td>${countedIn(p)}</td><td>${escapeHtml(p.note)}</td><td>${deleteButton("public/" + p.id)}</td></tr>`);
       $("t-public").innerHTML = "<tr><th>תאריך</th><th>חברה</th><th>קוט״ש</th><th>₪</th><th>₪ לקוט״ש</th><th>נספרת ב</th><th>הערה</th><th></th></tr>" + rows.join("");
     } else {
@@ -1231,9 +1266,6 @@
     if (document.activeElement !== $("s-price")) $("s-price").value = state.settings.fuelPrice;
     if (document.activeElement !== $("s-l100")) $("s-l100").value = state.settings.fuelL100;
     if (document.activeElement !== $("s-battery")) $("s-battery").value = state.settings.batteryKwh;
-    // Suggest providers the user has typed before.
-    const providers = [...new Set(state.publicCharges.map((p) => p.provider).filter(Boolean))].sort();
-    $("providers").innerHTML = providers.map((name) => `<option value="${escapeHtml(name)}"></option>`).join("");
   }
 
   /** The months of the latest render, for redraws that only need them (weather arriving). */
@@ -1318,6 +1350,83 @@
     el.textContent = text;
   }
 
+  /**
+   * The charging-company list: a button that opens a listbox of companies
+   * with their symbols. Keyboard: arrows move, Enter or Space picks, Escape
+   * closes. "אחר" shows a text field for a company not in the list.
+   */
+  const providerPicker = (() => {
+    const button = () => $("p-provider-btn");
+    const list = () => $("p-provider-list");
+    const other = () => $("p-provider-other");
+    let selected = PROVIDERS[0].id;
+    const options = [...PROVIDERS.map((p) => ({ id: p.id, name: p.name, icon: providerIcon(p.id) })), { id: OTHER_PROVIDER, name: "אחר", icon: null }];
+
+    const optionHtml = (o) => (o.icon ? `<img src="${o.icon}" alt="" width="28" height="28">` : '<span class="picker-blank" aria-hidden="true">…</span>') +
+      `<span class="picker-name">${escapeHtml(o.name)}</span>`;
+
+    function paint() {
+      const current = options.find((o) => o.id === selected);
+      button().innerHTML = optionHtml(current) + '<span class="picker-caret" aria-hidden="true">▾</span>';
+      $("p-provider").value = selected === OTHER_PROVIDER ? "" : current.name;
+      other().hidden = selected !== OTHER_PROVIDER;
+      for (const li of list().children) li.setAttribute("aria-selected", String(li.dataset.id === selected));
+    }
+
+    function open() {
+      list().hidden = false;
+      button().setAttribute("aria-expanded", "true");
+      // Keep the whole list on screen, clear of the floating bottom bar.
+      list().scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const current = list().querySelector('[aria-selected="true"]') || list().firstElementChild;
+      current.focus();
+    }
+
+    function close(focusButton) {
+      list().hidden = true;
+      button().setAttribute("aria-expanded", "false");
+      if (focusButton) button().focus();
+    }
+
+    function choose(id) {
+      selected = id;
+      paint();
+      close(id !== OTHER_PROVIDER);
+      if (id === OTHER_PROVIDER) other().focus();
+    }
+
+    function init() {
+      list().innerHTML = options.map((o) => `<li role="option" tabindex="-1" data-id="${o.id}" aria-selected="false">${optionHtml(o)}</li>`).join("");
+      button().addEventListener("click", () => (list().hidden ? open() : close(true)));
+      button().addEventListener("keydown", (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
+      list().addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) choose(li.dataset.id); });
+      list().addEventListener("keydown", (e) => {
+        const items = [...list().children];
+        const index = items.indexOf(document.activeElement);
+        if (e.key === "ArrowDown") { e.preventDefault(); items[Math.min(items.length - 1, index + 1)].focus(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); items[Math.max(0, index - 1)].focus(); }
+        else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
+        else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
+        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (index >= 0) choose(items[index].dataset.id); }
+        else if (e.key === "Escape" || e.key === "Tab") close(e.key === "Escape");
+      });
+      document.addEventListener("click", (e) => { if (!list().hidden && !e.target.closest(".picker")) close(false); });
+      paint();
+    }
+
+    return {
+      init,
+      /** The company name to save: a listed name, the typed one, or null when "אחר" is empty. */
+      value() {
+        if (selected !== OTHER_PROVIDER) return $("p-provider").value;
+        const typed = other().value.trim();
+        return typed ? typed : null;
+      },
+      /** Back to the default company after a save. */
+      reset() { other().value = ""; selected = PROVIDERS[0].id; paint(); },
+    };
+  })();
+
   const NOT_CONNECTED = "צריך להתחבר ל‑OneDrive קודם.";
 
   async function onSubmitReading(event) {
@@ -1363,7 +1472,8 @@
     const date = $("p-date").value;
     const kwh = inputNumber("p-kwh");
     const cost = inputNumber("p-cost");
-    const provider = $("p-provider").value.trim();
+    const provider = providerPicker.value();
+    if (provider == null) return showMessage("p-msg", "כתוב את שם החברה, או בחר חברה מהרשימה.");
     const note = $("p-note").value.trim();
     if (!state.connected) return showMessage("p-msg", NOT_CONNECTED);
     if (!date || !(kwh > 0) || cost == null || cost < 0) return showMessage("p-msg", "צריך תאריך, קוט״ש גדול מאפס וסכום.");
@@ -1371,7 +1481,8 @@
       // Always appended as a new entry: it never replaces a reading or another charge.
       await mutate((draft) => { draft.publicCharges.push({ id: newChargeId(), date, kwh, cost, provider, note }); });
       showMessage("p-msg", "הטעינה נשמרה.", true);
-      for (const id of ["p-kwh", "p-cost", "p-provider", "p-note"]) $(id).value = "";
+      for (const id of ["p-kwh", "p-cost", "p-note"]) $(id).value = "";
+      providerPicker.reset();
     } catch (err) {
       showMessage("p-msg", describeSaveError(err));
     }
@@ -2019,6 +2130,7 @@
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
     $("f-fuel").addEventListener("submit", onSubmitFuelSettings);
     $("f-car").addEventListener("submit", onSubmitCarSettings);
+    providerPicker.init();
     document.addEventListener("click", onClickDelete);
 
     $("export").addEventListener("click", () => downloadFile("zeekr-electric-" + todayIso() + ".csv", toCsv(state), "text/csv"));

@@ -281,3 +281,25 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
   #v-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   #v-overview > .kpis, #v-overview > .panel:has(#facts), #v-overview > #prov-panel, #v-overview > #season-panel { grid-column: 1 / -1; }
 }
+
+/* ---------- Charging-company picker (public charge form) ---------- */
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field-label { font-size: 0.9rem; color: var(--muted); }
+.picker { position: relative; }
+.picker-btn, .picker-list li { display: flex; align-items: center; gap: 10px; text-align: start; }
+.picker-btn { width: 100%; font: inherit; font-size: 1.05rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 7px 12px; cursor: pointer; min-height: 46px; }
+.picker-btn:focus-visible, .picker-list li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.picker-btn img, .picker-list img { width: 28px; height: 28px; border-radius: 7px; flex: none; object-fit: cover; }
+.picker-blank { width: 28px; height: 28px; border-radius: 7px; flex: none; display: grid; place-items: center; background: var(--line); color: var(--muted); }
+/* Names in Latin letters (ON EV) still line up on the right like the Hebrew ones. */
+.picker-name { flex: 1; min-width: 0; text-align: right; unicode-bidi: plaintext; direction: rtl; }
+.picker-caret { color: var(--muted); font-size: 0.9rem; }
+.picker-list { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 20; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); max-height: min(440px, 62vh); overflow-y: auto; scroll-margin-bottom: 120px; }
+.picker-list li { padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--fg); }
+.picker-list li:hover, .picker-list li:focus { background: var(--accent-soft); outline: none; }
+.picker-list li[aria-selected="true"] { font-weight: 600; }
+#p-provider-other { margin-top: 6px; }
+
+/* A company name with its symbol, in tables. */
+.prov { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; line-height: 1; }
+.prov img { width: 20px; height: 20px; border-radius: 5px; flex: none; }
