@@ -294,7 +294,10 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 /* Names in Latin letters (ON EV) still line up on the right like the Hebrew ones. */
 .picker-name { flex: 1; min-width: 0; text-align: right; unicode-bidi: plaintext; direction: rtl; }
 .picker-caret { color: var(--muted); font-size: 0.9rem; }
-.picker-list { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 20; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); max-height: min(440px, 62vh); overflow-y: auto; scroll-margin-bottom: 120px; }
+.picker-list { margin: 4px 0 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); scroll-margin-bottom: 120px; }
+/* The list opens inside the form and pushes the fields below it down, so the
+   page itself scrolls to every company (an overlay was cut off at the bottom
+   of a phone screen, under the floating bar). */
 .picker-list li { padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--fg); }
 .picker-list li:hover, .picker-list li:focus { background: var(--accent-soft); outline: none; }
 .picker-list li[aria-selected="true"] { font-weight: 600; }
