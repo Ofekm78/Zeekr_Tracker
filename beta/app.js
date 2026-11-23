@@ -869,7 +869,10 @@
     for (const s of Array.isArray(raw.schedules) ? raw.schedules : []) {
       const from = typeof s.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.from) ? s.from : null;
       const balance = Number(s.balance), ratePct = Number(s.ratePct), months = Math.round(Number(s.months));
-      if (from && balance > 0 && ratePct >= 0 && ratePct < 50 && months > 0 && months <= 600) loan.schedules.push({ from, balance, ratePct, months });
+      const payment = s.payment == null || s.payment === "" ? null : Number(s.payment);
+      if (from && balance > 0 && ratePct >= 0 && ratePct < 50 && months > 0 && months <= 600 && (payment == null || payment > 0)) {
+        loan.schedules.push(payment ? { from, balance, ratePct, months, payment } : { from, balance, ratePct, months });
+      }
     }
     loan.schedules.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
     return loan;
@@ -889,6 +892,20 @@
     const [y1, m1, d1] = from.split("-").map(Number);
     const [y2, m2, d2] = to.split("-").map(Number);
     return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
+  }
+
+  /**
+   * Monthly payment of a schedule: the fixed payment when one is given (a grace
+   * period, where mostly interest is paid), otherwise a regular (Spitzer) loan.
+   */
+  const schedulePayment = (s) => (s.payment > 0 ? s.payment : annuityPayment(s.balance, s.ratePct, s.months));
+
+  /** Balance of a schedule after k of its payments; with a fixed payment, what is left at the end stays owed. */
+  function scheduleBalance(s, k) {
+    if (!(s.payment > 0)) return annuityBalance(s.balance, s.ratePct, s.months, k);
+    k = Math.min(k, s.months);
+    const r = s.ratePct / 100 / 12, g = Math.pow(1 + r, k);
+    return Math.max(0, r ? s.balance * g - (s.payment * (g - 1)) / r : s.balance - s.payment * k);
   }
 
   /** Monthly payment of a regular (Spitzer) loan. */
@@ -951,10 +968,10 @@
       for (const s of schedules) if (s.from <= date) active = s;
       if (!active) return { payment: 0, interest: 0, balance: principal0, schedule: null };
       const k = monthsBetween(active.from, date);
-      const balance = annuityBalance(active.balance, active.ratePct, active.months, k);
+      const balance = scheduleBalance(active, k);
       if (k < 1 || k > active.months) return { payment: 0, interest: 0, balance, schedule: active };
-      const before = annuityBalance(active.balance, active.ratePct, active.months, k - 1);
-      return { payment: annuityPayment(active.balance, active.ratePct, active.months), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
+      const before = scheduleBalance(active, k - 1);
+      return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
     };
 
     const z = { fv: ownCash, out: ownCash, payments: 0, interest: 0, energy: 0, ins: 0, maint: 0 };
@@ -1008,7 +1025,7 @@
     }
     return {
       missing, rows, todayIndex, horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
-      kmSoFar: km, estimatedMonths: estimated, firstPayment: annuityPayment(schedules[0].balance, schedules[0].ratePct, schedules[0].months),
+      kmSoFar: km, estimatedMonths: estimated, firstPayment: schedulePayment(schedules[0]),
       now: rows[Math.min(todayIndex, rows.length - 1)], end: rows[rows.length - 1],
     };
   }
@@ -1649,8 +1666,8 @@
       ["עלות חשמל לק״מ", model.costPerKm ? formatNumber(model.costPerKm * 100, 1) + " אג׳" : "אין עדיין מדידות"],
       ["חודשים לפי הערכה עד היום", formatNumber(model.estimatedMonths) + " מתוך " + formatNumber(model.todayIndex)],
     ]);
-    $("loan-sched").innerHTML = "<tr><th>מתאריך</th><th>יתרה</th><th>ריבית שנתית</th><th>חודשים</th><th>החזר חודשי</th></tr>" +
-      loan.schedules.map((s) => `<tr><td>${formatDate(s.from)}</td><td>${money(s.balance)}</td><td>${pct(s.ratePct)}</td><td>${s.months}</td><td>${money(annuityPayment(s.balance, s.ratePct, s.months))}</td></tr>`).join("");
+    $("loan-sched").innerHTML = "<tr><th>מתאריך</th><th>יתרה</th><th>ריבית שנתית</th><th>חודשים</th><th>החזר חודשי</th><th>יתרה בסוף</th></tr>" +
+      loan.schedules.map((s) => `<tr><td>${formatDate(s.from)}</td><td>${money(s.balance)}</td><td>${pct(s.ratePct)}</td><td>${s.months}</td><td>${money(schedulePayment(s))}${s.payment > 0 ? ", קבוע" : ""}</td><td>${money(scheduleBalance(s, s.months))}</td></tr>`).join("");
     $("loan-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל</th><th>דלק בחלופי</th><th>החזר</th><th>מתוכו ריבית</th><th>יתרה</th><th>חוב עומד</th><th>שווי זיקר</th><th>שווי חלופי</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th></tr>" +
       model.rows.map((r) => `<tr class="${r.past ? "" : "muted-row"}"><td>${monthLabel(r.key, true)}${r.estimate && r.i ? " *" : ""}</td><td>${formatNumber(r.km)}</td><td>${formatNumber(r.energy)}</td><td>${formatNumber(r.fuel)}</td><td>${formatNumber(r.payment)}</td><td>${formatNumber(r.interest)}</td><td>${formatNumber(r.balance)}</td><td>${formatNumber(r.standOwed)}</td><td>${formatNumber(r.valueZ)}</td><td>${formatNumber(r.valueA)}</td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.advantage >= 0 ? "pos" : "neg"}">${formatNumber(r.advantage)}</td></tr>`).join("");
   }
@@ -1681,6 +1698,7 @@
       `<label>יתרה (₪)<input type="number" inputmode="decimal" step="any" class="s-bal" value="${s.balance ?? ""}"></label>` +
       `<label>ריבית שנתית (%)<input type="number" inputmode="decimal" step="any" class="s-rate" value="${s.ratePct ?? ""}"></label>` +
       `<label>חודשים<input type="number" inputmode="numeric" step="1" class="s-months" value="${s.months ?? ""}"></label>` +
+      `<label>החזר קבוע, ריק לשפיצר<input type="number" inputmode="decimal" step="any" class="s-pay" value="${s.payment ?? ""}"></label>` +
       `<button type="button" class="btn ghost small danger s-del" aria-label="מחק לוח">מחק</button>`;
     row.querySelector(".s-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
     $("l-sched").appendChild(row);
@@ -1699,6 +1717,7 @@
       balance: parseNumber(row.querySelector(".s-bal").value),
       ratePct: parseNumber(row.querySelector(".s-rate").value),
       months: parseNumber(row.querySelector(".s-months").value),
+      payment: parseNumber(row.querySelector(".s-pay").value),
     })).filter((s) => s.from || s.balance);
     const loan = normalizeLoan(raw);
     if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg", "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
@@ -2615,7 +2634,7 @@
   }
 
   // The pure functions are exposed for automated checks and for debugging in the console.
-  const api = { buildLoanModel, normalizeLoan, annuityPayment, addMonths, monthsBetween, parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
+  const api = { scheduleBalance, buildLoanModel, normalizeLoan, annuityPayment, addMonths, monthsBetween, parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
   else if (typeof globalThis !== "undefined") globalThis.ZeekrTracker = api;
