@@ -320,3 +320,23 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 
 /* Version next to the name in the header. */
 .head-version { font-family: var(--body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; opacity: 0.8; vertical-align: middle; background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 2px 8px; margin-inline-start: 4px; white-space: nowrap; }
+
+/* ---------- Car financing screen ---------- */
+.loan-big { font-family: var(--display); font-size: 2.4rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.loan-big.good { color: var(--good); }
+.loan-big.bad { color: var(--bad); }
+.loan-bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.loan-bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.loan-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .loan-two { grid-template-columns: 1fr; } }
+.facts.one { grid-template-columns: 1fr; }
+.loan-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 8px; vertical-align: 2px; }
+.loan-dot.z { background: var(--accent); }
+.loan-dot.a { background: var(--public); }
+#v-loan h3 { margin: 6px 0 0; font-size: 1rem; }
+.loan-how { padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; }
+#loan-table td.pos { color: var(--good); font-weight: 600; }
+#loan-table td.neg { color: var(--bad); font-weight: 600; }
+.sched-row { display: grid; grid-template-columns: 1.3fr 1fr 0.9fr 0.8fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+@media (max-width: 560px) { .sched-row { grid-template-columns: 1fr 1fr; } .sched-row .s-del { grid-column: 1 / -1; } }
+#v-loan dd, #v-loan td { unicode-bidi: plaintext; }

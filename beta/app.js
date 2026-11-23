@@ -28,7 +28,8 @@
  *     app: "zeekr-tracker", version: 2, updated: ISO timestamp,
  *     readings: [{ date, meter, odo, price, soc }],
  *     public:   [{ id, date, kwh, cost, provider, note }],
- *     settings: { fuelPrice, fuelL100, batteryKwh }
+ *     settings: { fuelPrice, fuelL100, batteryKwh },
+ *     loan:     { buyDate, carPrice, altPrice, schedules: [...], ... }  (see section 5b)
  *   }
  *
  *   reading - one look at the home charger's meter.
@@ -61,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.7";
+  const APP_VERSION = "3.8";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -171,6 +172,8 @@
     /** @type {PublicCharge[]} sorted by date */
     publicCharges: [],
     settings: { ...DEFAULT_SETTINGS },
+    /** Inputs of the car-financing comparison (section 5b). */
+    loan: null,
     /** True once the OneDrive file was loaded, so saving is safe. */
     connected: false,
     loading: false,
@@ -356,6 +359,7 @@
       readings: [...readingsByDate.values()].sort(byDate),
       publicCharges: publicCharges.sort(byDate),
       settings,
+      loan: normalizeLoan(source.loan),
     };
   }
 
@@ -369,6 +373,7 @@
       readings: data.readings.map((r) => ({ date: r.date, meter: r.meter, odo: r.odo ?? null, price: r.price ?? null, soc: r.soc ?? null })),
       public: data.publicCharges.map((p) => ({ id: p.id, date: p.date, kwh: p.kwh, cost: p.cost, provider: p.provider || "", note: p.note || "" })),
       settings: { ...data.settings },
+      loan: data.loan ? { ...data.loan, schedules: (data.loan.schedules || []).map((s) => ({ ...s })) } : null,
     };
   }
 
@@ -378,6 +383,7 @@
       readings: state.readings.map((r) => ({ ...r })),
       publicCharges: state.publicCharges.map((p) => ({ ...p })),
       settings: { ...state.settings },
+      loan: { ...state.loan, schedules: state.loan.schedules.map((s) => ({ ...s })) },
     };
   }
 
@@ -387,6 +393,7 @@
     state.readings = clean.readings;
     state.publicCharges = clean.publicCharges;
     state.settings = clean.settings;
+    state.loan = clean.loan;
     storage.set(STORE.cache, serializeData(clean));
   }
 
@@ -813,6 +820,214 @@
       sum += temp; count += 1;
     }
     return count >= MIN_DAYS_FOR_MONTH_TEMP ? sum / count : null;
+  }
+
+  /* ======================================================================
+   * 5b. Car financing: was the loan worth it?
+   *
+   * Compares two paths from the day the Zeekr was bought:
+   *   Zeekr path  - the Zeekr, paid with own cash, a loan against the
+   *                 provident fund (kupat gemel) and the Bituach Leumi
+   *                 standing loan; running costs are the real electricity
+   *                 from this app.
+   *   Alternative - a second-hand petrol car paid in cash; its fuel is the
+   *                 same km at that month's official petrol price.
+   *
+   * Every shekel paid out could have stayed in the provident fund instead, so
+   * every outflow is grown at the fund's yearly return up to the month shown
+   * ("lost return"). The cost of a path at month t is
+   *   Zeekr:  grown outflows + loan balance + standing loan owed - car value
+   *   Alt.:   grown outflows - car value
+   * and the advantage of the Zeekr is the alternative's cost minus the Zeekr's.
+   *
+   * Loan schedules: the provident-fund loan is prime-linked, so each change in
+   * the rate is a new schedule (from date, balance, yearly rate, months left);
+   * the monthly payment of each schedule is a regular annuity (Spitzer).
+   * ==================================================================== */
+
+  /** Upper bound for the comparison horizon, in months. */
+  const LOAN_MAX_MONTHS = 180;
+  const DEFAULT_LOAN = {
+    buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null,
+    altPrice: 80000, altL100: null, altDepPct: null, altIns: null, altMaint: null,
+    returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
+    kmMonth: null, schedules: [],
+  };
+  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "altPrice", "altL100", "altDepPct", "altIns", "altMaint",
+    "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth"];
+
+  /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
+  function normalizeLoan(raw) {
+    const loan = { ...DEFAULT_LOAN, schedules: [] };
+    if (!raw || typeof raw !== "object") return loan;
+    if (typeof raw.buyDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.buyDate)) loan.buyDate = raw.buyDate;
+    for (const key of LOAN_NUMBERS) {
+      if (raw[key] === null || raw[key] === "" || raw[key] === undefined) { loan[key] = key in raw ? null : DEFAULT_LOAN[key]; continue; }
+      const n = Number(raw[key]);
+      loan[key] = isFinite(n) && n >= 0 ? n : null;
+    }
+    for (const s of Array.isArray(raw.schedules) ? raw.schedules : []) {
+      const from = typeof s.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.from) ? s.from : null;
+      const balance = Number(s.balance), ratePct = Number(s.ratePct), months = Math.round(Number(s.months));
+      const payment = s.payment == null || s.payment === "" ? null : Number(s.payment);
+      if (from && balance > 0 && ratePct >= 0 && ratePct < 50 && months > 0 && months <= 600 && (payment == null || payment > 0)) {
+        loan.schedules.push(payment ? { from, balance, ratePct, months, payment } : { from, balance, ratePct, months });
+      }
+    }
+    loan.schedules.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+    return loan;
+  }
+
+  /** The ISO date n months after the given one; the day is kept or clamped to the month's last day. */
+  function addMonths(isoDate, n) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const target = new Date(Date.UTC(y, m - 1 + n, 1));
+    const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+    target.setUTCDate(Math.min(d, last));
+    return target.toISOString().slice(0, 10);
+  }
+
+  /** Whole months from one ISO date to a later one. */
+  function monthsBetween(from, to) {
+    const [y1, m1, d1] = from.split("-").map(Number);
+    const [y2, m2, d2] = to.split("-").map(Number);
+    return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
+  }
+
+  /**
+   * Monthly payment of a schedule: the fixed payment when one is given (a grace
+   * period, where mostly interest is paid), otherwise a regular (Spitzer) loan.
+   */
+  const schedulePayment = (s) => (s.payment > 0 ? s.payment : annuityPayment(s.balance, s.ratePct, s.months));
+
+  /** Balance of a schedule after k of its payments; with a fixed payment, what is left at the end stays owed. */
+  function scheduleBalance(s, k) {
+    if (!(s.payment > 0)) return annuityBalance(s.balance, s.ratePct, s.months, k);
+    k = Math.min(k, s.months);
+    const r = s.ratePct / 100 / 12, g = Math.pow(1 + r, k);
+    return Math.max(0, r ? s.balance * g - (s.payment * (g - 1)) / r : s.balance - s.payment * k);
+  }
+
+  /** Monthly payment of a regular (Spitzer) loan. */
+  function annuityPayment(balance, yearlyPct, months) {
+    const r = yearlyPct / 100 / 12;
+    return r ? (balance * r) / (1 - Math.pow(1 + r, -months)) : balance / months;
+  }
+
+  /** Balance left after k payments of a regular loan. */
+  function annuityBalance(balance, yearlyPct, months, k) {
+    if (k >= months) return 0;
+    const r = yearlyPct / 100 / 12;
+    const p = annuityPayment(balance, yearlyPct, months);
+    return r ? balance * Math.pow(1 + r, k) - (p * (Math.pow(1 + r, k) - 1)) / r : balance - p * k;
+  }
+
+  /** Inputs the comparison cannot run without, as Hebrew field names. */
+  function loanMissing(loan) {
+    const missing = [];
+    if (!loan.buyDate) missing.push("תאריך הקנייה");
+    if (!(loan.carPrice > 0)) missing.push("מחיר הזיקר");
+    if (!(loan.altPrice > 0)) missing.push("מחיר הרכב החלופי");
+    if (!loan.schedules.length) missing.push("לוח סילוקין אחד לפחות");
+    return missing;
+  }
+
+  /**
+   * Month-by-month comparison from the purchase to the later of today and the
+   * end of the last loan schedule.
+   * @param {object} loan normalised loan inputs
+   * @param {object[]} months calendar months from buildMonths
+   * @param {string} today ISO date
+   */
+  function buildLoanModel(loan, months, today) {
+    const missing = loanMissing(loan);
+    if (missing.length) return { missing };
+
+    // Driving and energy per month: the real month when it is fully measured, otherwise the average.
+    const byKey = new Map(months.map((m) => [m.key, m]));
+    const measured = months.filter((m) => !m.partial && m.km > 0);
+    const sum = (list, f) => list.reduce((s, m) => s + f(m), 0);
+    const measuredKm = sum(measured, (m) => m.km);
+    const costPerKm = measuredKm ? sum(measured, (m) => m.costHome + m.costPublic) / measuredKm : null;
+    const kmAvg = measured.length ? measuredKm / measured.length : null;
+    const kmEstimate = loan.kmMonth > 0 ? loan.kmMonth : kmAvg;
+
+    const schedules = loan.schedules;
+    const principal0 = schedules[0].balance;
+    const ownCash = loan.carPrice - (loan.standAmount || 0) - principal0;
+    const loanEnd = schedules.reduce((end, s) => { const e = addMonths(s.from, s.months); return e > end ? e : end; }, loan.buyDate);
+    const todayIndex = Math.max(0, monthsBetween(loan.buyDate, today));
+    const horizon = Math.min(LOAN_MAX_MONTHS, Math.max(todayIndex, monthsBetween(loan.buyDate, loanEnd), 12));
+    const growth = 1 + (loan.returnPct || 0) / 100 / 12;
+    const depZ = 1 - (loan.carDepPct || 0) / 100, depA = 1 - (loan.altDepPct || 0) / 100;
+    const standDrop = 1 - (loan.standDropPct || 0) / 100;
+
+    /** Loan state at a date: the active schedule, payments made under it, and the balance. */
+    const loanAt = (date) => {
+      let active = null;
+      for (const s of schedules) if (s.from <= date) active = s;
+      if (!active) return { payment: 0, interest: 0, balance: principal0, schedule: null };
+      const k = monthsBetween(active.from, date);
+      const balance = scheduleBalance(active, k);
+      if (k < 1 || k > active.months) return { payment: 0, interest: 0, balance, schedule: active };
+      const before = scheduleBalance(active, k - 1);
+      return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
+    };
+
+    const z = { fv: ownCash, out: ownCash, payments: 0, interest: 0, energy: 0, ins: 0, maint: 0 };
+    const a = { fv: loan.altPrice, out: loan.altPrice, fuel: 0, ins: 0, maint: 0 };
+    const rows = [];
+    let km = 0, estimated = 0;
+    for (let i = 0; i <= horizon; i++) {
+      const date = addMonths(loan.buyDate, i);
+      const key = date.slice(0, 7);
+      const state_ = loanAt(date);
+      let row = { i, date, key, past: i <= todayIndex, km: 0, energy: 0, fuel: 0, payment: 0, interest: 0, estimate: false };
+      if (i > 0) {
+        z.fv *= growth; a.fv *= growth;
+        const m = byKey.get(key);
+        const real = m && !m.partial && m.km > 0;
+        const monthKm = real ? m.km : kmEstimate || 0;
+        const energy = real ? m.costHome + m.costPublic : monthKm * (costPerKm || 0);
+        const fuel = monthKm * ((loan.altL100 || state.settings.fuelL100) / 100) * monthFuelPrice(key);
+        const insZ = (loan.carIns || 0) / 12, maintZ = (loan.carMaint || 0) / 12;
+        const insA = (loan.altIns || 0) / 12, maintA = (loan.altMaint || 0) / 12;
+        const outZ = state_.payment + energy + insZ + maintZ;
+        const outA = fuel + insA + maintA;
+        z.fv += outZ; z.out += outZ; z.payments += state_.payment; z.interest += state_.interest;
+        z.energy += energy; z.ins += insZ; z.maint += maintZ;
+        a.fv += outA; a.out += outA; a.fuel += fuel; a.ins += insA; a.maint += maintA;
+        if (i <= todayIndex) { km += monthKm; if (!real) estimated += 1; }
+        row = { ...row, km: monthKm, energy, fuel, payment: state_.payment, interest: state_.interest, estimate: !real };
+      }
+      const valueZ = loan.carPrice * Math.pow(depZ, i / 12);
+      const valueA = loan.altPrice * Math.pow(depA, i / 12);
+      const standOwed = loan.standFreeMonths > 0 && i >= loan.standFreeMonths ? 0 : (loan.standAmount || 0) * Math.pow(standDrop, i / 12);
+      const costZ = z.fv + state_.balance + standOwed - valueZ;
+      const costA = a.fv - valueA;
+      row = { ...row, balance: state_.balance, standOwed, valueZ, valueA, costZ, costA, advantage: costA - costZ, rate: state_.schedule ? state_.schedule.ratePct : null };
+      // Components of the totals at this month (they add up to costZ and costA exactly).
+      row.partsZ = {
+        depreciation: loan.carPrice - valueZ,
+        interest: z.payments + state_.balance - principal0,   // interest and any fee added on a new schedule
+        energy: z.energy, ins: z.ins, maint: z.maint,
+        lostReturn: z.fv - z.out,
+        standing: standOwed - (loan.standAmount || 0),         // negative: the part of the standing loan that is no longer owed
+      };
+      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, ins: a.ins, maint: a.maint, lostReturn: a.fv - a.out };
+      rows.push(row);
+    }
+
+    // The break-even month: from here to the end of the horizon the Zeekr stays ahead.
+    let breakEven = null;
+    for (let i = rows.length - 1; i >= 1 && rows[i].advantage >= 0; i--) {
+      if (rows[i - 1].advantage < 0) { breakEven = rows[i]; break; }
+    }
+    return {
+      missing, rows, todayIndex, horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
+      kmSoFar: km, estimatedMonths: estimated, firstPayment: schedulePayment(schedules[0]),
+      now: rows[Math.min(todayIndex, rows.length - 1)], end: rows[rows.length - 1],
+    };
   }
 
   /* ======================================================================
@@ -1320,9 +1535,199 @@
     renderStatus();
     renderOverview(model, months);
     renderHistory(model, months);
+    renderLoan(months);
     renderFormDefaults();
     renderFuelPricesInfo();
     renderReadingPreview();
+  }
+
+  /* ---------- Car financing screen ---------- */
+
+  const money = (v) => (v == null || !isFinite(v) ? "–" : (v < 0 ? "−" : "") + formatNumber(Math.abs(v), 0) + " ₪");
+
+  /**
+   * Cumulative cost of both paths over the months: solid up to today, dashed
+   * after it (forecast). A dot marks the month the Zeekr becomes worth it.
+   */
+  function drawLoanChart(el, model) {
+    const rows = model.rows;
+    const width = Math.max(280, el.clientWidth || 600);
+    const height = 230, left = 44, right = 12, top = 16, bottom = 26;
+    const plotW = width - left - right, plotH = height - top - bottom;
+    const values = rows.flatMap((r) => [r.costZ, r.costA]);
+    let low = Math.min(0, ...values), high = Math.max(...values);
+    if (high <= low) high = low + 1;
+    const span = high - low;
+    high += span * 0.08;
+    const xAt = (i) => left + (plotW * i) / Math.max(1, rows.length - 1);
+    const yAt = (v) => top + plotH - (plotH * (v - low)) / (high - low);
+    const path = (from, to, f) => rows.slice(from, to + 1).map((r, j) => (j ? "L" : "M") + xAt(from + j).toFixed(1) + " " + yAt(f(r)).toFixed(1)).join(" ");
+
+    let svg = svgOpen(width, height);
+    for (let g = 0; g <= 3; g++) {
+      const v = low + ((high - low) * g) / 3;
+      svg += gridLine(left, width - right, yAt(v), formatNumber(v / 1000, 0) + "K");
+    }
+    const t = Math.min(model.todayIndex, rows.length - 1);
+    for (const [f, color] of [[(r) => r.costA, "var(--public)"], [(r) => r.costZ, "var(--accent)"]]) {
+      svg += `<path d="${path(0, t, f)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      if (t < rows.length - 1) svg += `<path d="${path(t, rows.length - 1, f)}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    }
+    svg += `<line x1="${xAt(t)}" x2="${xAt(t)}" y1="${top}" y2="${top + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += `<text x="${xAt(t)}" y="${top + 10}" text-anchor="${t > rows.length * 0.8 ? "end" : "start"}" dx="${t > rows.length * 0.8 ? -4 : 4}" font-size="11" fill="var(--muted)">היום</text>`;
+    if (model.breakEven) {
+      const b = model.breakEven;
+      svg += `<circle cx="${xAt(b.i)}" cy="${yAt(b.costZ)}" r="5.5" fill="var(--good)" stroke="var(--surface)" stroke-width="2"/>`;
+    }
+    // Year labels along the bottom.
+    for (const r of rows) {
+      if (r.i % 12 !== 0) continue;
+      svg += `<text x="${xAt(r.i)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${r.i ? "שנה " + r.i / 12 : "קנייה"}</text>`;
+    }
+    el.innerHTML = svg + "</svg>";
+  }
+
+  const factsHtml = (rows) => rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
+  const pct = (v) => (v == null ? "–" : formatNumber(v, 2) + "%");
+
+  function renderLoan(months) {
+    const loan = state.loan;
+    const model = buildLoanModel(loan, months, todayIso());
+    const ready = !model.missing.length;
+    $("loan-missing").hidden = ready;
+    $("loan-missing").textContent = ready ? "" : "כדי לחשב חסרים: " + model.missing.join(", ") + ". אפשר להזין אותם למטה, בנתוני הבסיס.";
+    for (const id of ["loan-summary", "loan-compare", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
+    renderLoanForm();
+    if (!ready) return;
+
+    const now = model.now, end = model.end;
+    const adv = now.advantage;
+    $("loan-adv").textContent = money(Math.abs(adv));
+    $("loan-adv").className = "loan-big " + (adv >= 0 ? "good" : "bad");
+    $("loan-adv-label").textContent = adv >= 0 ? "לטובת הזיקר עד היום" : "לטובת רכב היד השנייה עד היום";
+    const pill = $("loan-pill");
+    pill.textContent = adv >= 0 ? "כדאי כרגע" : "עוד לא כדאי";
+    pill.className = "pill " + (adv >= 0 ? "good" : "warn");
+    $("loan-progress").style.width = Math.min(100, (model.todayIndex / Math.max(1, model.horizon)) * 100) + "%";
+    $("loan-month").textContent = "חודש " + model.todayIndex + " מתוך " + model.horizon;
+    $("loan-forecast").textContent = "תחזית לסוף התקופה, " + formatDate(end.date) + ": " + money(Math.abs(end.advantage)) + (end.advantage >= 0 ? " לטובת הזיקר." : " לטובת רכב היד השנייה.") +
+      (model.breakEven ? " נקודת המפגש: " + monthName(model.breakEven.key) + "." : "");
+
+    const pz = now.partsZ, pa = now.partsA;
+    $("loan-z").innerHTML = factsHtml([
+      ["ירידת ערך", money(pz.depreciation)],
+      ["ריבית ועמלות", money(pz.interest)],
+      ["חשמל", money(pz.energy)],
+      ["ביטוח", money(pz.ins)],
+      ["טיפולים", money(pz.maint)],
+      ["תשואה שאבדה", money(pz.lostReturn)],
+      ["הלוואה עומדת שנשחקה", money(pz.standing)],
+      ["<b>סה״כ עלות</b>", "<b>" + money(now.costZ) + "</b>"],
+    ]);
+    $("loan-a").innerHTML = factsHtml([
+      ["ירידת ערך", money(pa.depreciation)],
+      ["דלק", money(pa.fuel)],
+      ["ביטוח", money(pa.ins)],
+      ["טיפולים", money(pa.maint)],
+      ["תשואה שאבדה", money(pa.lostReturn)],
+      ["<b>סה״כ עלות</b>", "<b>" + money(now.costA) + "</b>"],
+    ]);
+
+    drawLoanChart($("c-loan"), model);
+    $("loan-chart-note").textContent = "קו מלא עד היום, מקווקו אחרי היום הוא תחזית לפי הממוצע." + (model.breakEven ? " הנקודה הירוקה היא נקודת המפגש." : "");
+
+    // Base data, then derived figures, then the formula and the month table.
+    $("loan-base").innerHTML = factsHtml([
+      ["תאריך הקנייה", formatDate(loan.buyDate)],
+      ["מחיר הזיקר", money(loan.carPrice)],
+      ["הלוואה על חשבון הגמל", money(model.principal0)],
+      ["הלוואה עומדת, ביטוח לאומי", money(loan.standAmount || 0)],
+      ["מזומן במעמד הקנייה", money(model.ownCash)],
+      ["ירידת ערך שנתית, זיקר", pct(loan.carDepPct)],
+      ["ביטוח שנתי, זיקר", money(loan.carIns)],
+      ["טיפולים בשנה, זיקר", money(loan.carMaint)],
+      ["מחיר הרכב החלופי", money(loan.altPrice)],
+      ["צריכת דלק, חלופי", formatNumber(loan.altL100 || state.settings.fuelL100, 1) + " ל׳ ל‑100 ק״מ"],
+      ["ירידת ערך שנתית, חלופי", pct(loan.altDepPct)],
+      ["ביטוח שנתי, חלופי", money(loan.altIns)],
+      ["טיפולים בשנה, חלופי", money(loan.altMaint)],
+      ["תשואה שנתית בגמל", pct(loan.returnPct)],
+      ["שחיקת החוב העומד בשנה", pct(loan.standDropPct)],
+      ["חודשים עד שאין החזר עומד", loan.standFreeMonths > 0 ? formatNumber(loan.standFreeMonths) : "אין"],
+    ]);
+    $("loan-derived").innerHTML = factsHtml([
+      ["החזר חודשי בלוח הראשון", money(model.firstPayment)],
+      ["סוף ההלוואה", formatDate(model.loanEnd)],
+      ["יתרת הלוואה היום", money(now.balance)],
+      ["חוב עומד היום", money(now.standOwed)],
+      ["שווי הזיקר היום", money(now.valueZ)],
+      ["שווי החלופי היום", money(now.valueA)],
+      ["ק״מ בחודש לתחזית", formatNumber(model.kmEstimate, 0) + (loan.kmMonth > 0 ? " ק״מ, לפי ההגדרה" : " ק״מ, ממוצע המדידות")],
+      ["עלות חשמל לק״מ", model.costPerKm ? formatNumber(model.costPerKm * 100, 1) + " אג׳" : "אין עדיין מדידות"],
+      ["חודשים לפי הערכה עד היום", formatNumber(model.estimatedMonths) + " מתוך " + formatNumber(model.todayIndex)],
+    ]);
+    $("loan-sched").innerHTML = "<tr><th>מתאריך</th><th>יתרה</th><th>ריבית שנתית</th><th>חודשים</th><th>החזר חודשי</th><th>יתרה בסוף</th></tr>" +
+      loan.schedules.map((s) => `<tr><td>${formatDate(s.from)}</td><td>${money(s.balance)}</td><td>${pct(s.ratePct)}</td><td>${s.months}</td><td>${money(schedulePayment(s))}${s.payment > 0 ? ", קבוע" : ""}</td><td>${money(scheduleBalance(s, s.months))}</td></tr>`).join("");
+    $("loan-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל</th><th>דלק בחלופי</th><th>החזר</th><th>מתוכו ריבית</th><th>יתרה</th><th>חוב עומד</th><th>שווי זיקר</th><th>שווי חלופי</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th></tr>" +
+      model.rows.map((r) => `<tr class="${r.past ? "" : "muted-row"}"><td>${monthLabel(r.key, true)}${r.estimate && r.i ? " *" : ""}</td><td>${formatNumber(r.km)}</td><td>${formatNumber(r.energy)}</td><td>${formatNumber(r.fuel)}</td><td>${formatNumber(r.payment)}</td><td>${formatNumber(r.interest)}</td><td>${formatNumber(r.balance)}</td><td>${formatNumber(r.standOwed)}</td><td>${formatNumber(r.valueZ)}</td><td>${formatNumber(r.valueA)}</td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.advantage >= 0 ? "pos" : "neg"}">${formatNumber(r.advantage)}</td></tr>`).join("");
+  }
+
+  /* ---------- Base data form ---------- */
+
+  const LOAN_FIELDS = {
+    "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-ins": "carIns", "l-car-maint": "carMaint",
+    "l-alt": "altPrice", "l-alt-l100": "altL100", "l-alt-dep": "altDepPct", "l-alt-ins": "altIns", "l-alt-maint": "altMaint",
+    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth",
+  };
+
+  /** Fills the form from the saved data, unless the user is editing it. */
+  function renderLoanForm() {
+    const form = $("f-loan");
+    if (form.dataset.dirty) return;
+    for (const [id, key] of Object.entries(LOAN_FIELDS)) $(id).value = state.loan[key] ?? "";
+    $("l-sched").innerHTML = "";
+    for (const s of state.loan.schedules) addScheduleRow(s);
+    if (!state.loan.schedules.length) addScheduleRow({ from: state.loan.buyDate || "", balance: "", ratePct: "", months: "" });
+  }
+
+  function addScheduleRow(s) {
+    const row = document.createElement("div");
+    row.className = "sched-row";
+    row.innerHTML =
+      `<label>מתאריך<input type="date" class="s-from" value="${escapeHtml(s.from || "")}"></label>` +
+      `<label>יתרה (₪)<input type="number" inputmode="decimal" step="any" class="s-bal" value="${s.balance ?? ""}"></label>` +
+      `<label>ריבית שנתית (%)<input type="number" inputmode="decimal" step="any" class="s-rate" value="${s.ratePct ?? ""}"></label>` +
+      `<label>חודשים<input type="number" inputmode="numeric" step="1" class="s-months" value="${s.months ?? ""}"></label>` +
+      `<label>החזר קבוע, ריק לשפיצר<input type="number" inputmode="decimal" step="any" class="s-pay" value="${s.payment ?? ""}"></label>` +
+      `<button type="button" class="btn ghost small danger s-del" aria-label="מחק לוח">מחק</button>`;
+    row.querySelector(".s-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
+    $("l-sched").appendChild(row);
+  }
+
+  async function onSubmitLoan(event) {
+    event.preventDefault();
+    if (!state.connected) return showMessage("l-msg", NOT_CONNECTED);
+    const raw = {};
+    for (const [id, key] of Object.entries(LOAN_FIELDS)) {
+      const value = $(id).value.trim();
+      raw[key] = key === "buyDate" ? value : value === "" ? null : parseNumber(value);
+    }
+    raw.schedules = [...document.querySelectorAll("#l-sched .sched-row")].map((row) => ({
+      from: row.querySelector(".s-from").value,
+      balance: parseNumber(row.querySelector(".s-bal").value),
+      ratePct: parseNumber(row.querySelector(".s-rate").value),
+      months: parseNumber(row.querySelector(".s-months").value),
+      payment: parseNumber(row.querySelector(".s-pay").value),
+    })).filter((s) => s.from || s.balance);
+    const loan = normalizeLoan(raw);
+    if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg", "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
+    try {
+      delete $("f-loan").dataset.dirty;
+      await mutate((draft) => { draft.loan = loan; });
+      showMessage("l-msg", "נשמר.", true);
+    } catch (err) {
+      showMessage("l-msg", describeSaveError(err));
+    }
   }
 
   /* ======================================================================
@@ -1602,7 +2007,7 @@
     delete button.dataset.armed;
     button.textContent = "רוקן את קובץ הבדיקות";
     try {
-      await mutate((draft) => { draft.readings = []; draft.publicCharges = []; draft.settings = { ...DEFAULT_SETTINGS }; });
+      await mutate((draft) => { draft.readings = []; draft.publicCharges = []; draft.settings = { ...DEFAULT_SETTINGS }; draft.loan = null; });
       showMessage("t-msg", "קובץ הבדיקות רוקן.", true);
     } catch (err) {
       showMessage("t-msg", describeSaveError(err));
@@ -1637,13 +2042,13 @@
     }
   }
 
-  const TABS = ["overview", "add", "history", "settings"];
+  const TABS = ["overview", "loan", "add", "history", "settings"];
 
   function showTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     for (const name of TABS) $("v-" + name).hidden = name !== tab;
     try { localStorage.setItem(STORE.tab, tab); } catch (e) { /* storage unavailable */ }
-    if (tab === "overview") render(); // charts measure their container, so draw once it is visible
+    if (tab === "overview" || tab === "loan") render(); // charts measure their container, so draw once it is visible
   }
 
   /** Switches the entry screen between the monthly reading and the public charge forms. */
@@ -1841,7 +2246,7 @@
       }
     }
 
-    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings };
+    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings, loan: current.loan };
 
     // The meter and the odometer only ever go up; a drop after the merge points at a typo in the file.
     const warnings = [];
@@ -2171,6 +2576,9 @@
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
     $("f-fuel").addEventListener("submit", onSubmitFuelSettings);
     $("f-car").addEventListener("submit", onSubmitCarSettings);
+    $("f-loan").addEventListener("submit", onSubmitLoan);
+    $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
+    $("l-add-sched").addEventListener("click", () => { addScheduleRow({ from: "", balance: "", ratePct: "", months: "" }); $("f-loan").dataset.dirty = "1"; });
     providerPicker.init();
     document.addEventListener("click", onClickDelete);
 
@@ -2193,6 +2601,7 @@
   }
 
   async function start() {
+    state.loan = normalizeLoan(null);
     bindEvents();
     $("r-date").value = $("p-date").value = todayIso();
     $("app-version").textContent = APP_VERSION;
@@ -2225,7 +2634,7 @@
   }
 
   // The pure functions are exposed for automated checks and for debugging in the console.
-  const api = { parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
+  const api = { scheduleBalance, buildLoanModel, normalizeLoan, annuityPayment, addMonths, monthsBetween, parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
   else if (typeof globalThis !== "undefined") globalThis.ZeekrTracker = api;

@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.7">
-  <script src="app.js?v=3.7" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.8">
+  <script src="app.js?v=3.8" defer></script>
 </head>
 <body>
 
@@ -75,6 +75,7 @@
   <!-- Floats at the bottom of a phone screen; a row under the header on a wide screen. -->
   <nav class="tabs" role="tablist" aria-label="ניווט">
     <button role="tab" data-tab="overview" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>סקירה</button>
+    <button role="tab" data-tab="loan" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c0-1.4-1.3-2-3-2s-3 .8-3 2 1.3 1.8 3 2.3 3 1 3 2.4-1.3 2-3 2-3-.7-3-2M12 6v1.5M12 16.5V18"/></svg>הלוואה</button>
     <button role="tab" data-tab="add" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>הזנה</button>
     <button role="tab" data-tab="history" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>היסטוריה</button>
     <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>הגדרות</button>
@@ -165,6 +166,93 @@
       <h2>צריכה לפי עונה</h2>
       <dl class="facts" id="season"></dl>
       <p class="sub">קיץ: יוני–ספטמבר. חורף: דצמבר–פברואר. התמונה תתבהר אחרי שנה מלאה של מדידות.</p>
+    </div>
+  </section>
+
+  <!-- ===== Car financing: was the loan worth it? (section 5b in app.js) ===== -->
+  <section class="view" id="v-loan" hidden>
+    <p class="hint" id="loan-missing" hidden></p>
+
+    <div class="panel" id="loan-summary">
+      <div class="row"><h2>כדאיות ההלוואה</h2><span class="pill" id="loan-pill"></span></div>
+      <p class="sub">הזיקר במימון, מול רכב יד שנייה במזומן והכסף שנשאר בקופת הגמל.</p>
+      <div><div class="loan-big" id="loan-adv">–</div><div class="sub" id="loan-adv-label"></div></div>
+      <div class="loan-bar"><i id="loan-progress"></i></div>
+      <p class="sub" id="loan-month"></p>
+      <p class="sub" id="loan-forecast"></p>
+    </div>
+
+    <div class="loan-two" id="loan-compare">
+      <div class="panel"><h2><i class="loan-dot z"></i>הזיקר</h2><dl class="facts one" id="loan-z"></dl></div>
+      <div class="panel"><h2><i class="loan-dot a"></i>יד שנייה וגמל</h2><dl class="facts one" id="loan-a"></dl></div>
+    </div>
+
+    <div class="panel" id="loan-chart-panel">
+      <h2>עלות מצטברת</h2>
+      <div class="legend"><span><i class="home"></i>הזיקר</span><span><i class="public"></i>יד שנייה וגמל</span></div>
+      <div class="chart" id="c-loan"></div>
+      <p class="sub" id="loan-chart-note"></p>
+    </div>
+
+    <div class="panel" id="loan-detail-panel">
+      <h2>פירוט החישוב</h2>
+      <h3>נתוני בסיס</h3>
+      <dl class="facts" id="loan-base"></dl>
+      <h3>נתונים מחושבים</h3>
+      <dl class="facts" id="loan-derived"></dl>
+      <h3>לוחות סילוקין, הלוואה על חשבון הגמל</h3>
+      <div class="scroll"><table id="loan-sched"></table></div>
+      <h3>איך מחושב</h3>
+      <ul class="sub loan-how">
+        <li>כל שקל שיצא מהכיס היה יכול להישאר בגמל, ולכן כל הוצאה גדלה בתשואה של הגמל עד החודש המוצג. ההפרש הוא התשואה שאבדה.</li>
+        <li>עלות הזיקר היא ההוצאות עם התשואה שאבדה, ועוד יתרת ההלוואה והחוב העומד, פחות שווי הרכב.</li>
+        <li>עלות החלופה היא 80 אלף ששולמו ביום הקנייה, דלק, ביטוח וטיפולים עם התשואה שאבדה, פחות שווי הרכב.</li>
+        <li>החשמל נלקח מהמדידות באפליקציה. הדלק של החלופה הוא אותם ק״מ במחיר הבנזין הרשמי של כל חודש.</li>
+        <li>חודש שאין לו מדידה מלאה מחושב לפי הממוצע, והוא מסומן בכוכבית בטבלה.</li>
+        <li>ההחזר החודשי בכל לוח מחושב בשיטת שפיצר, או לפי החזר קבוע בתקופת גרייס. שינוי בפריים נכנס כלוח חדש מתאריך השינוי.</li>
+      </ul>
+      <details class="guide">
+        <summary>טבלה חודשית מלאה</summary>
+        <div class="body"><div class="scroll"><table id="loan-table"></table></div><p class="sub">שורות בהירות הן תחזית. סכומים בשקלים.</p></div>
+      </details>
+    </div>
+
+    <div class="panel">
+      <details class="guide" id="loan-edit">
+        <summary>עריכת נתוני הבסיס</summary>
+        <div class="body">
+          <form id="f-loan" novalidate>
+            <h3 class="full">הזיקר</h3>
+            <label>תאריך הקנייה<input type="date" id="l-buy"></label>
+            <label>מחיר הזיקר (₪)<input type="number" inputmode="decimal" step="any" id="l-car"></label>
+            <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-car-dep"></label>
+            <label>ביטוח בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-ins"></label>
+            <label>טיפולים בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-maint"></label>
+            <label>ק״מ בחודש לתחזית, ריק לממוצע<input type="number" inputmode="decimal" step="any" id="l-km"></label>
+
+            <h3 class="full">הלוואה עומדת, ביטוח לאומי</h3>
+            <label>סכום (₪)<input type="number" inputmode="decimal" step="any" id="l-stand"></label>
+            <label>שחיקת החוב בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-stand-drop"></label>
+            <label class="full">אחרי כמה חודשים אין החזר בפועל, ריק אם אין<input type="number" inputmode="numeric" step="1" id="l-stand-free"></label>
+
+            <h3 class="full">הלוואה על חשבון הגמל</h3>
+            <p class="sub full">לוח לכל שינוי בריבית. בכל לוח, היתרה והחודשים שנשארו מאותו תאריך. בתקופת גרייס מזינים את ההחזר הקבוע, ומה שנשאר בסופה נשאר כחוב עד הלוח הבא.</p>
+            <div class="full" id="l-sched"></div>
+            <button class="btn ghost small full" type="button" id="l-add-sched">הוסף לוח סילוקין</button>
+
+            <h3 class="full">רכב יד שנייה וגמל</h3>
+            <label>מחיר הרכב (₪)<input type="number" inputmode="decimal" step="any" id="l-alt"></label>
+            <label>צריכת דלק (ליטר ל‑100 ק״מ)<input type="number" inputmode="decimal" step="any" id="l-alt-l100"></label>
+            <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-alt-dep"></label>
+            <label>ביטוח בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-ins"></label>
+            <label>טיפולים בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-maint"></label>
+            <label>תשואה שנתית בגמל (%)<input type="number" inputmode="decimal" step="any" id="l-return"></label>
+
+            <button class="btn full" type="submit">שמור</button>
+            <p class="msg full" id="l-msg" role="status"></p>
+          </form>
+        </div>
+      </details>
     </div>
   </section>
 
