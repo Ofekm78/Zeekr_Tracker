@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.6";
+  const APP_VERSION = "3.7";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -911,52 +911,56 @@
   }
 
   /**
-   * Scatter chart: consumption (y) against average temperature (x), one dot
-   * per month, with a least-squares trend line once there are 3 dots.
+   * Consumption and temperature over time: two lines on one month axis,
+   * consumption (kWh per 100 km, left scale) and the month's mean temperature
+   * (right scale). Tapping a month (or hovering / clicking on a computer)
+   * shows its name and both values in a small label.
    * @param {HTMLElement} el
-   * @param {{label:string, temp:number, value:number}[]} points
+   * @param {{label:string, name:string, temp:(number|null), value:number}[]} points oldest first
    */
-  function drawScatterChart(el, points) {
+  function drawTempTimeChart(el, points) {
+    points = points.slice(-CHART_MAX_POINTS);
     const width = Math.max(280, el.clientWidth || 600);
-    const left = 44, bottom = 34, top = 18, right = 16;
-    const plotW = width - left - right, plotH = CHART_HEIGHT - bottom - top;
-    const temps = points.map((p) => p.temp), values = points.map((p) => p.value);
-    const tLow = Math.floor(Math.min(...temps) - 2), tHigh = Math.ceil(Math.max(...temps) + 2);
-    const vLow = Math.max(0, Math.floor(Math.min(...values) - 2)), vHigh = Math.ceil(Math.max(...values) + 2);
-    // Temperature grows to the right, as on a thermometer scale, also in a right-to-left page.
-    const xAt = (t) => left + (plotW * (t - tLow)) / (tHigh - tLow);
-    const yAt = (v) => top + plotH - (plotH * (v - vLow)) / (vHigh - vLow);
+    const left = 34, right = 38, top = 14, bottom = 26;
+    const plotW = width - left - right, plotH = CHART_HEIGHT - top - bottom;
+    const values = points.map((p) => p.value);
+    const temps = points.map((p) => p.temp).filter((t) => t != null);
+    const vLow = Math.max(0, Math.floor(Math.min(...values) - 1)), vHigh = Math.ceil(Math.max(...values) + 1);
+    const tLow = Math.floor((Math.min(...temps) - 2) / 5) * 5, tHigh = Math.ceil((Math.max(...temps) + 2) / 5) * 5;
+    const xAt = (i) => left + (points.length > 1 ? (plotW * i) / (points.length - 1) : plotW / 2);
+    const yV = (v) => top + plotH - (plotH * (v - vLow)) / (vHigh - vLow || 1);
+    const yT = (t) => top + plotH - (plotH * (t - tLow)) / (tHigh - tLow || 1);
+    const TEMP = "var(--temp, #e8743b)";
 
     let svg = svgOpen(width, CHART_HEIGHT);
-    for (let g = 0; g <= 3; g++) {
-      const v = vLow + ((vHigh - vLow) * g) / 3;
-      svg += gridLine(left, width - right, yAt(v), formatNumber(v, 0));
+    for (let g = 0; g <= 4; g++) {
+      const y = top + (plotH * g) / 4;
+      svg += `<line x1="${left}" x2="${width - right}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+      svg += `<text x="${left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--accent)">${formatNumber(vHigh - ((vHigh - vLow) * g) / 4, 0)}</text>`;
+      svg += `<text x="${width - right + 6}" y="${y + 4}" font-size="11" fill="${TEMP}">${formatNumber(tHigh - ((tHigh - tLow) * g) / 4, 0)}°</text>`;
     }
-    const tStep = Math.max(1, Math.round((tHigh - tLow) / 5));
-    for (let t = tLow; t <= tHigh; t += tStep) {
-      svg += `<text x="${xAt(t)}" y="${CHART_HEIGHT - 18}" text-anchor="middle" font-size="11" fill="var(--muted)">${t}°</text>`;
-    }
-    svg += `<text x="${left + plotW / 2}" y="${CHART_HEIGHT - 3}" text-anchor="middle" font-size="11" fill="var(--muted)">טמפרטורה ממוצעת בחודש</text>`;
-    if (points.length >= 3) {
-      const n = points.length;
-      const mt = temps.reduce((a, b) => a + b, 0) / n, mv = values.reduce((a, b) => a + b, 0) / n;
-      const sxx = temps.reduce((a, t) => a + (t - mt) ** 2, 0);
-      if (sxx > 0) {
-        const slope = points.reduce((a, p) => a + (p.temp - mt) * (p.value - mv), 0) / sxx;
-        const at = (t) => Math.min(vHigh, Math.max(vLow, mv + slope * (t - mt)));
-        svg += `<line x1="${xAt(tLow)}" x2="${xAt(tHigh)}" y1="${yAt(at(tLow))}" y2="${yAt(at(tHigh))}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-      }
-    }
-    // Month names only while they fit; a tap (phone) or click/hover (computer)
-    // on a dot shows its month, temperature and consumption in a small label.
-    const labelled = points.length <= 6 || width >= 700;
+    // Temperature line, broken where a month has no weather data.
+    let path = "", pen = false;
     points.forEach((p, i) => {
-      const cx = xAt(p.temp), cy = yAt(p.value);
-      svg += `<g class="dot" data-i="${i}" tabindex="0" role="button" aria-label="${p.name}: ${formatNumber(p.temp, 1)} מעלות, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ">` +
-        `<circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>` +   // a finger-sized target
-        `<circle class="dot-mark" cx="${cx}" cy="${cy}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>` +
-        `<title>${p.name}: ${formatNumber(p.temp, 1)}°, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ</title></g>`;
-      if (labelled) svg += `<text x="${cx}" y="${cy - 9}" text-anchor="middle" font-size="10" fill="var(--fg)" pointer-events="none">${p.label}</text>`;
+      if (p.temp == null) { pen = false; return; }
+      path += (pen ? "L" : "M") + xAt(i) + " " + yT(p.temp) + " ";
+      pen = true;
+    });
+    if (path) svg += `<path d="${path}" fill="none" stroke="${TEMP}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    const vPath = points.map((p, i) => (i ? "L" : "M") + xAt(i) + " " + yV(p.value)).join(" ");
+    svg += `<path d="${vPath}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
+    const every = Math.max(1, Math.ceil(40 / (plotW / Math.max(1, points.length - 1))));
+    points.forEach((p, i) => {
+      svg += `<circle cx="${xAt(i)}" cy="${yV(p.value)}" r="3.5" fill="var(--accent)"/>`;
+      if (p.temp != null) svg += `<circle cx="${xAt(i)}" cy="${yT(p.temp)}" r="3" fill="${TEMP}"/>`;
+      if ((points.length - 1 - i) % every === 0) svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+    });
+    // One tall, finger-wide target per month.
+    const slot = points.length > 1 ? plotW / (points.length - 1) : plotW;
+    points.forEach((p, i) => {
+      const tempText = p.temp != null ? formatNumber(p.temp, 1) + " מעלות" : "אין נתון טמפרטורה";
+      svg += `<rect class="slot" data-i="${i}" x="${xAt(i) - slot / 2}" y="${top}" width="${slot}" height="${plotH}" fill="transparent" tabindex="0" role="button" ` +
+        `aria-label="${p.name}: ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ, ${tempText}"><title>${p.name}: ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ, ${tempText}</title></rect>`;
     });
     el.innerHTML = svg + '<g class="dot-tip" pointer-events="none"></g></svg>';
 
@@ -964,26 +968,24 @@
     const show = (i) => {
       const p = points[i];
       if (!p) { tip.innerHTML = ""; return; }
-      const cx = xAt(p.temp), cy = yAt(p.value);
-      const lines = [p.name, formatNumber(p.temp, 1) + " מעלות · " + formatNumber(p.value, 1) + " קוט״ש ל‑100"];
-      const boxW = 170, boxH = 40;
+      const cx = xAt(i);
+      const boxW = 176, boxH = 42;
       const x = Math.min(width - right - boxW, Math.max(left, cx - boxW / 2));
-      const y = cy - boxH - 12 < top ? cy + 12 : cy - boxH - 12;
-      tip.innerHTML = `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+      const y = top + 2;
+      const second = formatNumber(p.value, 1) + " קוט״ש ל‑100 · " + (p.temp != null ? formatNumber(p.temp, 1) + " מעלות" : "אין טמפרטורה");
+      tip.innerHTML = `<line x1="${cx}" x2="${cx}" y1="${top}" y2="${top + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>` +
         `<rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="8" fill="var(--fg)"/>` +
-        `<text x="${x + boxW / 2}" y="${y + 16}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)">${lines[0]}</text>` +
-        `<text x="${x + boxW / 2}" y="${y + 32}" text-anchor="middle" font-size="11" fill="var(--surface)" direction="rtl">${lines[1]}</text>`;
+        `<text x="${x + boxW / 2}" y="${y + 16}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)">${p.name}</text>` +
+        `<text x="${x + boxW / 2}" y="${y + 33}" text-anchor="middle" font-size="11" fill="var(--surface)" direction="rtl">${second}</text>`;
     };
     let pinned = -1;
-    el.querySelectorAll(".dot").forEach((g) => {
-      const i = +g.dataset.i;
-      g.addEventListener("click", (e) => { e.stopPropagation(); pinned = pinned === i ? -1 : i; show(pinned); });
-      g.addEventListener("mouseenter", () => show(i));
-      g.addEventListener("mouseleave", () => show(pinned));
-      g.addEventListener("focus", () => show(i));
-      g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pinned = i; show(i); } });
+    el.querySelectorAll(".slot").forEach((r) => {
+      const i = +r.dataset.i;
+      r.addEventListener("click", (e) => { e.stopPropagation(); pinned = pinned === i ? -1 : i; show(pinned); });
+      r.addEventListener("mouseenter", () => show(i));
+      r.addEventListener("mouseleave", () => show(pinned));
+      r.addEventListener("focus", () => show(i));
     });
-    // A tap anywhere else on the chart closes the label.
     el.querySelector("svg").addEventListener("click", () => { pinned = -1; show(-1); });
   }
 
@@ -1156,14 +1158,11 @@
     const first = state.readings[0].date;
     const last = state.readings[state.readings.length - 1].date;
     ensureWeather(first, () => { if (!$("v-overview").hidden) renderTemperature(lastMonths); });
-    const points = months
-      .filter((m) => m.efficiency != null)
-      .map((m) => ({ label: monthLabel(m.key, true), name: monthName(m.key), temp: monthTemperature(m.key, first, last), value: m.efficiency }))
-      .filter((p) => p.temp != null);
-    if (points.length) {
-      drawScatterChart(el, points);
-      note.textContent = "כל נקודה היא חודש" + ". נגיעה בנקודה, או ריחוף במחשב, מראה את החודש ואת הנתונים שלו" + ". הקו המקווקו הוא המגמה" + (points.length < 3 ? ", והוא יופיע מ‑3 חודשים ומעלה" : "") +
-        ". הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
+    const withEff = months.filter((m) => m.efficiency != null);
+    const points = withEff.map((m, i) => ({ label: monthLabel(m.key, i === 0), name: monthName(m.key), temp: monthTemperature(m.key, first, last), value: m.efficiency }));
+    if (points.some((p) => p.temp != null)) {
+      drawTempTimeChart(el, points);
+      note.textContent = "נגיעה בחודש, או ריחוף במחשב, מראה את הצריכה ואת הטמפרטורה שלו. הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
     } else if (weather.status === "loading") {
       el.innerHTML = '<p class="empty">טוען נתוני מזג אוויר…</p>';
       note.textContent = "";

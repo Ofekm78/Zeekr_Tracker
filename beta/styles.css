@@ -311,9 +311,12 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 .prov { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; line-height: 1; }
 .prov img { width: 20px; height: 20px; border-radius: 5px; flex: none; }
 
-/* Consumption-versus-temperature dots: tappable, with a pointer on computers. */
-#c-temp .dot { cursor: pointer; outline: none; }
-#c-temp .dot:focus-visible .dot-mark { stroke: var(--accent); stroke-width: 4; }
+/* Consumption and temperature over time: each month is tappable. */
+:root { --temp: #e8743b; }
+.legend .temp { background: var(--temp); }
+.temp-legend { margin: 2px 0 6px; }
+#c-temp .slot { cursor: pointer; outline: none; }
+#c-temp .slot:focus-visible { fill: var(--accent-soft); }
 
 /* Version next to the name in the header. */
 .head-version { font-family: var(--body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; opacity: 0.8; vertical-align: middle; background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 2px 8px; margin-inline-start: 4px; white-space: nowrap; }
