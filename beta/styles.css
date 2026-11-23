@@ -317,6 +317,3 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 
 /* Version next to the name in the header. */
 .head-version { font-family: var(--body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; opacity: 0.8; vertical-align: middle; background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 2px 8px; margin-inline-start: 4px; white-space: nowrap; }
-
-/* Shekel sign beside the number (to its left), in the number's own font. */
-.kpi .num .cur { margin-inline-start: 0.15em; unicode-bidi: isolate; }
