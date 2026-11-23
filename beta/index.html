@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.3">
-  <script src="app.js?v=3.3" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.4">
+  <script src="app.js?v=3.4" defer></script>
 </head>
 <body>
 
@@ -63,7 +63,8 @@
   <header class="head">
     <img class="mark" src="icons/symbol-header.png?v=1" alt="" width="240" height="170">
     <div class="head-text">
-      <h1 lang="en">ZEEKR TRACKER</h1>
+      <!-- The version comes from APP_VERSION in app.js, so it changes with every update. -->
+      <h1 lang="en">ZEEKR TRACKER <span class="head-version" id="head-version"></span></h1>
       <span class="pill" id="status">טוען נתונים…</span>
     </div>
   </header>

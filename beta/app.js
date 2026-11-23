@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.3";
+  const APP_VERSION = "3.4";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -947,14 +947,44 @@
         svg += `<line x1="${xAt(tLow)}" x2="${xAt(tHigh)}" y1="${yAt(at(tLow))}" y2="${yAt(at(tHigh))}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
       }
     }
-    // Month names only while they fit; a tap or hover on a dot always shows its details.
+    // Month names only while they fit; a tap (phone) or click/hover (computer)
+    // on a dot shows its month, temperature and consumption in a small label.
     const labelled = points.length <= 6 || width >= 700;
-    for (const p of points) {
-      svg += `<circle cx="${xAt(p.temp)}" cy="${yAt(p.value)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2">` +
-        `<title>${p.label}: ${formatNumber(p.temp, 1)}°, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ</title></circle>`;
-      if (labelled) svg += `<text x="${xAt(p.temp)}" y="${yAt(p.value) - 9}" text-anchor="middle" font-size="10" fill="var(--fg)">${p.label}</text>`;
-    }
-    el.innerHTML = svg + "</svg>";
+    points.forEach((p, i) => {
+      const cx = xAt(p.temp), cy = yAt(p.value);
+      svg += `<g class="dot" data-i="${i}" tabindex="0" role="button" aria-label="${p.name}: ${formatNumber(p.temp, 1)} מעלות, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ">` +
+        `<circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>` +   // a finger-sized target
+        `<circle class="dot-mark" cx="${cx}" cy="${cy}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>` +
+        `<title>${p.name}: ${formatNumber(p.temp, 1)}°, ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ</title></g>`;
+      if (labelled) svg += `<text x="${cx}" y="${cy - 9}" text-anchor="middle" font-size="10" fill="var(--fg)" pointer-events="none">${p.label}</text>`;
+    });
+    el.innerHTML = svg + '<g class="dot-tip" pointer-events="none"></g></svg>';
+
+    const tip = el.querySelector(".dot-tip");
+    const show = (i) => {
+      const p = points[i];
+      if (!p) { tip.innerHTML = ""; return; }
+      const cx = xAt(p.temp), cy = yAt(p.value);
+      const lines = [p.name, formatNumber(p.temp, 1) + " מעלות · " + formatNumber(p.value, 1) + " קוט״ש ל‑100"];
+      const boxW = 170, boxH = 40;
+      const x = Math.min(width - right - boxW, Math.max(left, cx - boxW / 2));
+      const y = cy - boxH - 12 < top ? cy + 12 : cy - boxH - 12;
+      tip.innerHTML = `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+        `<rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="8" fill="var(--fg)"/>` +
+        `<text x="${x + boxW / 2}" y="${y + 16}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)">${lines[0]}</text>` +
+        `<text x="${x + boxW / 2}" y="${y + 32}" text-anchor="middle" font-size="11" fill="var(--surface)" direction="rtl">${lines[1]}</text>`;
+    };
+    let pinned = -1;
+    el.querySelectorAll(".dot").forEach((g) => {
+      const i = +g.dataset.i;
+      g.addEventListener("click", (e) => { e.stopPropagation(); pinned = pinned === i ? -1 : i; show(pinned); });
+      g.addEventListener("mouseenter", () => show(i));
+      g.addEventListener("mouseleave", () => show(pinned));
+      g.addEventListener("focus", () => show(i));
+      g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pinned = i; show(i); } });
+    });
+    // A tap anywhere else on the chart closes the label.
+    el.querySelector("svg").addEventListener("click", () => { pinned = -1; show(-1); });
   }
 
   /* ======================================================================
@@ -1128,11 +1158,11 @@
     ensureWeather(first, () => { if (!$("v-overview").hidden) renderTemperature(lastMonths); });
     const points = months
       .filter((m) => m.efficiency != null)
-      .map((m) => ({ label: monthLabel(m.key, true), temp: monthTemperature(m.key, first, last), value: m.efficiency }))
+      .map((m) => ({ label: monthLabel(m.key, true), name: monthName(m.key), temp: monthTemperature(m.key, first, last), value: m.efficiency }))
       .filter((p) => p.temp != null);
     if (points.length) {
       drawScatterChart(el, points);
-      note.textContent = "כל נקודה היא חודש" + (points.length > 6 ? ". במחשב, ריחוף מעל נקודה מראה איזה חודש" : "") + ". הקו המקווקו הוא המגמה" + (points.length < 3 ? ", והוא יופיע מ‑3 חודשים ומעלה" : "") +
+      note.textContent = "כל נקודה היא חודש" + ". נגיעה בנקודה, או ריחוף במחשב, מראה את החודש ואת הנתונים שלו" + ". הקו המקווקו הוא המגמה" + (points.length < 3 ? ", והוא יופיע מ‑3 חודשים ומעלה" : "") +
         ". הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
     } else if (weather.status === "loading") {
       el.innerHTML = '<p class="empty">טוען נתוני מזג אוויר…</p>';
@@ -2167,6 +2197,7 @@
     bindEvents();
     $("r-date").value = $("p-date").value = todayIso();
     $("app-version").textContent = APP_VERSION;
+    $("head-version").textContent = "v" + APP_VERSION;
     for (const el of document.querySelectorAll(".file-name")) el.textContent = DATA_FILE_NAME;
     $("beta-banner").hidden = !IS_BETA;
     $("beta-panel").hidden = !IS_BETA;

@@ -247,7 +247,7 @@ h1, h2 { font-weight: 400; }
 .head { background: var(--band); color: #fff; border-radius: var(--radius); padding: 20px 18px; }
 .head { flex-wrap: nowrap; justify-content: flex-start; gap: 14px; }
 .head-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
-.head h1 { font-size: 1.7rem; letter-spacing: 0.04em; }
+.head h1 { font-size: clamp(1.25rem, 5.4vw, 1.7rem); letter-spacing: 0.04em; white-space: nowrap; }
 /* White symbol on a transparent background, so it takes the header's own colour. */
 .head .mark { height: 40px; width: auto; flex: none; align-self: center; }
 .head .pill { background: rgba(255, 255, 255, 0.18); color: #fff; }
@@ -310,3 +310,10 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 /* A company name with its symbol, in tables. */
 .prov { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; line-height: 1; }
 .prov img { width: 20px; height: 20px; border-radius: 5px; flex: none; }
+
+/* Consumption-versus-temperature dots: tappable, with a pointer on computers. */
+#c-temp .dot { cursor: pointer; outline: none; }
+#c-temp .dot:focus-visible .dot-mark { stroke: var(--accent); stroke-width: 4; }
+
+/* Version next to the name in the header. */
+.head-version { font-family: var(--body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; opacity: 0.8; vertical-align: middle; background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 2px 8px; margin-inline-start: 4px; white-space: nowrap; }
