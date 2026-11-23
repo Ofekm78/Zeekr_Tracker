@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.8">
-  <script src="app.js?v=3.8" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.9">
+  <script src="app.js?v=3.9" defer></script>
 </head>
 <body>
 
@@ -194,6 +194,14 @@
       <p class="sub" id="loan-chart-note"></p>
     </div>
 
+    <div class="panel" id="ef-panel">
+      <h2>חשמל מול דלק</h2>
+      <p class="sub">כל חודש, כמה עלה החשמל בפועל, וכמה היו עולים אותם ק״מ בדלק ברכב שעושה <span id="ef-kml"></span> ק״מ לליטר, לפי מחיר הבנזין הרשמי באותו חודש. את הנתון משנים בעריכת נתוני הבסיס.</p>
+      <dl class="facts" id="ef-total"></dl>
+      <div class="scroll"><table id="ef-table"></table></div>
+      <p class="sub">חודש עם כוכבית הוא חודש שהמדידות לא מכסות את כל ימיו.</p>
+    </div>
+
     <div class="panel" id="loan-detail-panel">
       <h2>פירוט החישוב</h2>
       <h3>נתוני בסיס</h3>
@@ -242,7 +250,7 @@
 
             <h3 class="full">רכב יד שנייה וגמל</h3>
             <label>מחיר הרכב (₪)<input type="number" inputmode="decimal" step="any" id="l-alt"></label>
-            <label>צריכת דלק (ליטר ל‑100 ק״מ)<input type="number" inputmode="decimal" step="any" id="l-alt-l100"></label>
+            <label>ק״מ לליטר<input type="number" inputmode="decimal" step="any" id="l-alt-kml"></label>
             <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-alt-dep"></label>
             <label>ביטוח בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-ins"></label>
             <label>טיפולים בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-maint"></label>
