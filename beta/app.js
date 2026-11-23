@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.8";
+  const APP_VERSION = "3.9";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -849,11 +849,11 @@
   const LOAN_MAX_MONTHS = 180;
   const DEFAULT_LOAN = {
     buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null,
-    altPrice: 80000, altL100: null, altDepPct: null, altIns: null, altMaint: null,
+    altPrice: 80000, altKmL: null, altDepPct: null, altIns: null, altMaint: null,
     returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
     kmMonth: null, schedules: [],
   };
-  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "altPrice", "altL100", "altDepPct", "altIns", "altMaint",
+  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "altPrice", "altKmL", "altDepPct", "altIns", "altMaint",
     "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth"];
 
   /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
@@ -874,6 +874,8 @@
         loan.schedules.push(payment ? { from, balance, ratePct, months, payment } : { from, balance, ratePct, months });
       }
     }
+    // 3.8 stored litres per 100 km; it is now km per litre.
+    if (!(loan.altKmL > 0) && Number(raw.altL100) > 0) loan.altKmL = 100 / Number(raw.altL100);
     loan.schedules.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
     return loan;
   }
@@ -921,6 +923,9 @@
     const p = annuityPayment(balance, yearlyPct, months);
     return r ? balance * Math.pow(1 + r, k) - (p * (Math.pow(1 + r, k) - 1)) / r : balance - p * k;
   }
+
+  /** Km per litre of the alternative car; falls back to the petrol car in Settings. */
+  const altKmPerLitre = (loan) => (loan.altKmL > 0 ? loan.altKmL : 100 / state.settings.fuelL100);
 
   /** Inputs the comparison cannot run without, as Hebrew field names. */
   function loanMissing(loan) {
@@ -989,7 +994,7 @@
         const real = m && !m.partial && m.km > 0;
         const monthKm = real ? m.km : kmEstimate || 0;
         const energy = real ? m.costHome + m.costPublic : monthKm * (costPerKm || 0);
-        const fuel = monthKm * ((loan.altL100 || state.settings.fuelL100) / 100) * monthFuelPrice(key);
+        const fuel = (monthKm / altKmPerLitre(loan)) * monthFuelPrice(key);
         const insZ = (loan.carIns || 0) / 12, maintZ = (loan.carMaint || 0) / 12;
         const insA = (loan.altIns || 0) / 12, maintA = (loan.altMaint || 0) / 12;
         const outZ = state_.payment + energy + insZ + maintZ;
@@ -1590,8 +1595,40 @@
   const factsHtml = (rows) => rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
   const pct = (v) => (v == null ? "–" : formatNumber(v, 2) + "%");
 
+  /**
+   * Electricity against petrol, month by month: what the electricity really
+   * cost, and what the same km would have cost in petrol in the alternative
+   * car at that month's official price. Measured months only.
+   */
+  function renderEnergyVsFuel(months) {
+    const kmL = altKmPerLitre(state.loan);
+    const list = months.filter((m) => m.km > 0);
+    $("ef-kml").textContent = formatNumber(kmL, 1);
+    if (!list.length) {
+      $("ef-table").innerHTML = "";
+      $("ef-total").innerHTML = '<p class="empty span-all">יופיע כאן אחרי שתי מדידות עם קילומטראז׳.</p>';
+      return;
+    }
+    let km = 0, elec = 0, fuel = 0;
+    const rows = list.map((m) => {
+      const e = m.costHome + m.costPublic;
+      const f = (m.km / kmL) * monthFuelPrice(m.key);
+      km += m.km; elec += e; fuel += f;
+      return `<tr><td>${monthName(m.key)}${m.partial ? " *" : ""}</td><td>${formatNumber(m.km)}</td><td>${formatNumber(e)}</td><td>${formatNumber(f)}</td><td class="${f - e >= 0 ? "pos" : "neg"}">${formatNumber(f - e)}</td></tr>`;
+    });
+    $("ef-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל ₪</th><th>דלק ₪</th><th>חיסכון ₪</th></tr>" + rows.reverse().join("") +
+      `<tr class="total"><td>סה״כ</td><td>${formatNumber(km)}</td><td>${formatNumber(elec)}</td><td>${formatNumber(fuel)}</td><td>${formatNumber(fuel - elec)}</td></tr>`;
+    $("ef-total").innerHTML = factsHtml([
+      ["חשמל בפועל", money(elec)],
+      ["אותם ק״מ בדלק", money(fuel)],
+      ["חיסכון", money(fuel - elec)],
+      ["עלות לק״מ, חשמל מול דלק", formatNumber((elec / km) * 100, 0) + " מול " + formatNumber((fuel / km) * 100, 0) + " אג׳"],
+    ]);
+  }
+
   function renderLoan(months) {
     const loan = state.loan;
+    renderEnergyVsFuel(months);
     const model = buildLoanModel(loan, months, todayIso());
     const ready = !model.missing.length;
     $("loan-missing").hidden = ready;
@@ -1647,7 +1684,7 @@
       ["ביטוח שנתי, זיקר", money(loan.carIns)],
       ["טיפולים בשנה, זיקר", money(loan.carMaint)],
       ["מחיר הרכב החלופי", money(loan.altPrice)],
-      ["צריכת דלק, חלופי", formatNumber(loan.altL100 || state.settings.fuelL100, 1) + " ל׳ ל‑100 ק״מ"],
+      ["צריכת דלק, חלופי", formatNumber(altKmPerLitre(loan), 1) + " ק״מ לליטר"],
       ["ירידת ערך שנתית, חלופי", pct(loan.altDepPct)],
       ["ביטוח שנתי, חלופי", money(loan.altIns)],
       ["טיפולים בשנה, חלופי", money(loan.altMaint)],
@@ -1676,7 +1713,7 @@
 
   const LOAN_FIELDS = {
     "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-ins": "carIns", "l-car-maint": "carMaint",
-    "l-alt": "altPrice", "l-alt-l100": "altL100", "l-alt-dep": "altDepPct", "l-alt-ins": "altIns", "l-alt-maint": "altMaint",
+    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-ins": "altIns", "l-alt-maint": "altMaint",
     "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth",
   };
 

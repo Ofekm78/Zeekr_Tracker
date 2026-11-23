@@ -340,3 +340,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 .sched-row { display: grid; grid-template-columns: 1.3fr 1fr 0.9fr 0.8fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
 @media (max-width: 560px) { .sched-row { grid-template-columns: 1fr 1fr; } .sched-row .s-del { grid-column: 1 / -1; } }
 #v-loan dd, #v-loan td { unicode-bidi: plaintext; }
+#ef-table td.pos { color: var(--good); font-weight: 600; }
+#ef-table td.neg { color: var(--bad); font-weight: 600; }
+#ef-table tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
+#v-loan #ef-table td { unicode-bidi: plaintext; }
