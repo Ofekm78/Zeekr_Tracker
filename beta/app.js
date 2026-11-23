@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "2.9";
+  const APP_VERSION = "3.0";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -812,7 +812,6 @@
     const step = plotW / items.length;
     const barW = Math.min(46, step * 0.62);
     const baseY = top + plotH;
-    const labelEvery = Math.max(1, Math.ceil(40 / step));
 
     let svg = svgOpen(width, CHART_HEIGHT);
     for (let g = 0; g <= 3; g++) svg += gridLine(left, width - 8, baseY - (plotH * g) / 3, Math.round((max * g) / 3));
@@ -821,13 +820,10 @@
       const hHome = (plotH * it.home) / max;
       const hPub = (plotH * it.pub) / max;
       const faded = it.faded ? ' opacity="0.45"' : "";
-      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="2" fill="var(--accent)"${faded}/>`;
-      if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="2" fill="var(--public)"${faded}/>`;
-      // The latest month is underlined in the tail-light red of the logo.
-      if (i === items.length - 1) svg += `<rect x="${x - 3}" y="${baseY + 3}" width="${barW + 6}" height="3" fill="var(--latest)"/>`;
+      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="3" fill="var(--accent)"${faded}/>`;
+      if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="3" fill="var(--public)"${faded}/>`;
       if (step > 34) svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--fg)">${Math.round(it.home + it.pub)}</text>`;
-      // On a narrow screen, name every n-th month (always the latest) so labels do not overlap.
-      if ((items.length - 1 - i) % labelEvery === 0) svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`;
+      svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`;
     });
     el.innerHTML = svg + "</svg>";
   }
@@ -965,13 +961,6 @@
     $("k-cpk").textContent = formatNumber(costPerKm == null ? null : costPerKm * 100, 1);
     $("k-month").textContent = formatNumber(spent.days ? (spent.total / spent.days) * 30 : null, 0);
     $("k-save").textContent = formatNumber(saved, 0);
-    // Electricity against petrol per km: the petrol bar is the full width, electricity its share of it.
-    $("v-ev").textContent = formatNumber(costPerKm == null ? null : costPerKm * 100, 1);
-    $("v-pet").textContent = formatNumber(fuelPerKm * 100, 1);
-    const evShare = costPerKm != null && fuelPerKm > 0 ? Math.min(100, (costPerKm / fuelPerKm) * 100) : 0;
-    $("bar-ev").style.width = evShare + "%";
-    $("bar-pet").style.width = fuelPerKm > 0 ? "100%" : "0";
-    $("k-share").textContent = spent.total ? formatNumber((spent.public / spent.total) * 100, 0) + "%" : "–";
 
     const shown = months.slice(-CHART_MAX_POINTS);
     drawCostChart($("c-cost"), shown.map((m, i) => ({ label: monthLabel(m.key, i === 0), home: m.costHome, pub: m.costPublic, faded: m.partial })));
@@ -1299,9 +1288,6 @@
   function renderReadingPreview() {
     const el = $("r-preview");
     const date = $("r-date").value;
-    // The previous meter value under the meter field, to compare while typing.
-    const before = date ? neighbours(date).previous : state.readings[state.readings.length - 1];
-    $("r-prev").textContent = before ? "בפעם הקודמת, " + formatDate(before.date) + ": " + formatNumber(before.meter, 1) : "";
     const meter = inputNumber("r-meter");
     const odo = inputNumber("r-odo");
     const price = inputNumber("r-price");
@@ -1506,18 +1492,6 @@
     for (const name of TABS) $("v-" + name).hidden = name !== tab;
     try { localStorage.setItem(STORE.tab, tab); } catch (e) { /* storage unavailable */ }
     if (tab === "overview") render(); // charts measure their container, so draw once it is visible
-  }
-
-  const CHARTS = ["cost", "eff", "cost100", "saving", "share", "temp"];
-  const CHART_KEY = "zk-chart";
-
-  /** Shows one of the overview charts; the others stay in the page, hidden. */
-  function showChart(name, redraw) {
-    if (!CHARTS.includes(name)) name = "cost";
-    document.querySelectorAll(".chips button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.chart === name)));
-    document.querySelectorAll(".pane").forEach((p) => { p.hidden = p.dataset.pane !== name; });
-    try { localStorage.setItem(CHART_KEY, name); } catch (e) { /* storage unavailable */ }
-    if (redraw) render(); // charts measure their container, so draw once it is visible
   }
 
   /** Switches the entry screen between the monthly reading and the public charge forms. */
@@ -2036,7 +2010,6 @@
 
   function bindEvents() {
     document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
-    document.querySelectorAll(".chips button").forEach((b) => b.addEventListener("click", () => showChart(b.dataset.chart, true)));
     $("seg-reading").addEventListener("click", () => showEntryForm("reading"));
     $("seg-public").addEventListener("click", () => showEntryForm("public"));
 
@@ -2078,9 +2051,6 @@
 
     let tab = "overview";
     try { tab = localStorage.getItem(STORE.tab) || tab; } catch (e) { /* storage unavailable */ }
-    let chart = "cost";
-    try { chart = localStorage.getItem(CHART_KEY) || chart; } catch (e) { /* storage unavailable */ }
-    showChart(chart, false);
     showTab(TABS.includes(tab) ? tab : "overview");
 
     // Paint the last known data immediately; OneDrive replaces it when it answers.
