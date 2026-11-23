@@ -241,8 +241,11 @@ h1, h2 { font-weight: 400; }
 
 /* Header: a blue band with the logo beside the title. */
 .head { background: var(--band); color: #fff; border-radius: var(--radius); padding: 20px 18px; }
-.head h1 { font-size: 1.7rem; display: flex; align-items: center; gap: 10px; }
-.head .mark { width: 40px; height: 40px; border-radius: 12px; background: #000; flex: none; }
+.head { flex-wrap: nowrap; justify-content: flex-start; gap: 14px; }
+.head-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
+.head h1 { font-size: 1.7rem; letter-spacing: 0.04em; }
+/* White symbol on a transparent background, so it takes the header's own colour. */
+.head .mark { height: 40px; width: auto; flex: none; align-self: center; }
 .head .pill { background: rgba(255, 255, 255, 0.18); color: #fff; }
 .head .pill.warn { background: #fbecd6; color: #8a4a00; }
 
