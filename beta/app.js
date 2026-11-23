@@ -61,7 +61,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.2";
+  const APP_VERSION = "3.3";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -994,6 +994,9 @@
 
     $("k-eff").textContent = formatNumber(efficiency, 1);
     $("k-cpk").textContent = formatNumber(costPerKm == null ? null : costPerKm * 100, 1);
+    // Km driven on electricity for the money one liter of petrol costs today.
+    $("k-kpl").textContent = formatNumber(costPerKm ? currentFuelPrice / costPerKm : null, 0);
+    $("k-kpl-unit").textContent = "בכסף של ליטר, " + formatNumber(currentFuelPrice, 2) + " ₪";
     $("k-month").textContent = formatNumber(spent.days ? (spent.total / spent.days) * 30 : null, 0);
     $("k-save").textContent = formatNumber(saved, 0);
 
@@ -1080,6 +1083,15 @@
     const cost100 = withEff.map((m) => ({ key: m.key, value: (m.efficiency * monthPricePerKwh(m)) || 0 }));
     drawLineChart($("c-cost100"), cost100.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
       driven.km ? (driven.cost / driven.km) * 100 : null, { decimals: 0 });
+
+    // Per month: that month's petrol price divided by that month's electricity cost per km.
+    const kpl = withEff
+      .map((m) => ({ key: m.key, costPerKm: (m.efficiency * monthPricePerKwh(m)) / 100 }))
+      .filter((p) => p.costPerKm > 0)
+      .map((p) => ({ key: p.key, value: monthFuelPrice(p.key) / p.costPerKm }));
+    const kplAverage = driven.km && driven.cost ? fuelPriceOn(todayIso()) / (driven.cost / driven.km) : null;
+    drawLineChart($("c-kpl"), kpl.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+      kplAverage, { decimals: 0 });
 
     let running = 0;
     const cumulative = [];

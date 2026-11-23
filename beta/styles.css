@@ -144,8 +144,12 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- 4. Overview ---------- */
 
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 620px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width: 620px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  /* Five figures: the last one gets the whole row instead of half of it. */
+  .kpis > .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
 .kpi .lab { font-size: 0.82rem; color: var(--muted); }
