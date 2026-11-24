@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.20";
+  const APP_VERSION = "3.21";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -106,7 +106,8 @@
    * share the sign-in token (sign in once) but keep separate offline caches.
    */
   const CACHE_KEYS = { main: "zk-data", beta: "zk-data-test" };
-  const STORE = { token: "zk-tok", cache: IS_BETA ? CACHE_KEYS.beta : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce", loanView: "zk-loan-view" };
+  const STORE = { token: "zk-tok", cache: IS_BETA ? CACHE_KEYS.beta : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce",
+    loanView: "zk-loan-view" };
 
   const DATA_FORMAT_VERSION = 2;
   /** batteryKwh: Zeekr X, 66 kWh per the manufacturer's specification page. */
@@ -187,7 +188,8 @@
   /**
    * @typedef {{date:string, meter:number, odo:(number|null), price:(number|null), soc:(number|null)}} Reading
    * @typedef {{id:string, date:string, kwh:number, cost:number, provider:string, note:string}} PublicCharge
-   * @typedef {{readings:Reading[], publicCharges:PublicCharge[], settings:{fuelPrice:number, fuelL100:number, batteryKwh:number}}} AppData
+   * @typedef {{readings:Reading[], publicCharges:PublicCharge[],
+   *   settings:{fuelPrice:number, fuelL100:number, batteryKwh:number}}} AppData
    */
 
   /* ======================================================================
@@ -326,7 +328,8 @@
     if (!date) return { error: "תאריך חסר או לא תקין" };
     if (meter == null || !isFinite(meter) || meter < 0) return { error: "קריאת מונה חסרה או לא תקינה" };
     if (odo != null && (!isFinite(odo) || odo < 0)) return { error: "קילומטראז׳ לא תקין" };
-    if (price != null && (!isFinite(price) || price < 0 || price > MAX_PRICE_PER_KWH)) return { error: "מחיר לקוט״ש לא תקין" };
+    if (price != null &&
+      (!isFinite(price) || price < 0 || price > MAX_PRICE_PER_KWH)) return { error: "מחיר לקוט״ש לא תקין" };
     if (soc != null && (!isFinite(soc) || soc < 0 || soc > 100)) return { error: "אחוז סוללה צריך להיות בין 0 ל‑100" };
     return { value: { date, meter, odo, price: price > 0 ? price : null, soc } };
   }
@@ -394,8 +397,10 @@
       app: "zeekr-tracker",
       version: DATA_FORMAT_VERSION,
       updated: new Date().toISOString(),
-      readings: data.readings.map((r) => ({ date: r.date, meter: r.meter, odo: r.odo ?? null, price: r.price ?? null, soc: r.soc ?? null })),
-      public: data.publicCharges.map((p) => ({ id: p.id, date: p.date, kwh: p.kwh, cost: p.cost, provider: p.provider || "", note: p.note || "" })),
+      readings: data.readings.map((r) => ({ date: r.date, meter: r.meter, odo: r.odo ?? null, price: r.price ?? null,
+        soc: r.soc ?? null })),
+      public: data.publicCharges.map((p) => ({ id: p.id, date: p.date, kwh: p.kwh, cost: p.cost,
+        provider: p.provider || "", note: p.note || "" })),
       settings: { ...data.settings },
       loan: data.loan ? copyLoan(data.loan) : null,
     };
@@ -558,7 +563,8 @@
     return { periods, spans, driven, spent, pending };
   }
 
-  const MONTH_NAMES = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+  const MONTH_NAMES = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר",
+    "נובמבר", "דצמבר"];
   const MONTH_SHORT = ["ינו׳", "פבר׳", "מרץ", "אפר׳", "מאי", "יוני", "יולי", "אוג׳", "ספט׳", "אוק׳", "נוב׳", "דצמ׳"];
 
   /** "2026-03" -> "מרץ 2026" */
@@ -609,7 +615,8 @@
     const months = new Map();
     const monthOf = (isoDate) => isoDate.slice(0, 7);
     const get = (key) => {
-      if (!months.has(key)) months.set(key, { key, days: 0, odoDays: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, km: 0, effKwh: 0 });
+      if (!months.has(key)) months.set(key,
+        { key, days: 0, odoDays: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, km: 0, effKwh: 0 });
       return months.get(key);
     };
 
@@ -689,7 +696,8 @@
     const years = new Map();
     for (const m of months) {
       const key = m.key.slice(0, 4);
-      if (!years.has(key)) years.set(key, { year: key, days: 0, km: 0, effKwh: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, saving: 0 });
+      if (!years.has(key)) years.set(key,
+        { year: key, days: 0, km: 0, effKwh: 0, kwhHome: 0, kwhPublic: 0, costHome: 0, costPublic: 0, saving: 0 });
       const y = years.get(key);
       y.days += m.days; y.km += m.km; y.effKwh += m.effKwh;
       y.kwhHome += m.kwhHome; y.kwhPublic += m.kwhPublic; y.costHome += m.costHome; y.costPublic += m.costPublic;
@@ -712,7 +720,8 @@
   function providerLabel(name) {
     const provider = findProvider(name);
     if (!provider) return escapeHtml(name);
-    return `<span class="prov"><img src="${providerIcon(provider.id)}" alt="" width="20" height="20">${escapeHtml(provider.name)}</span>`;
+    return `<span class="prov"><img src="${providerIcon(provider.id)}" alt="" width="20" height="20">` +
+      `${escapeHtml(provider.name)}</span>`;
   }
 
   /**
@@ -843,7 +852,8 @@
     try {
       const archiveEnd = new Date(toTime(today) - 7 * MS_PER_DAY).toISOString().slice(0, 10);
       const days = { ...weather.days };
-      if (from <= archiveEnd) Object.assign(days, await fetchDailyTemps(WEATHER.archiveUrl, { start_date: from, end_date: archiveEnd }));
+      if (from <= archiveEnd) Object.assign(days,
+        await fetchDailyTemps(WEATHER.archiveUrl, { start_date: from, end_date: archiveEnd }));
       Object.assign(days, await fetchDailyTemps(WEATHER.recentUrl, { past_days: 30, forecast_days: 1 }));
       for (const d of Object.keys(days)) if (d > today) delete days[d];
       weather.days = days;
@@ -878,7 +888,8 @@
   const CHART_HEIGHT = 210;
 
   function svgOpen(width, height) {
-    return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" font-family="Assistant,sans-serif">`;
+    return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}"` +
+      ` role="img" font-family="Assistant,sans-serif">`;
   }
 
   /** Horizontal grid line with its value label on the left axis. */
@@ -911,13 +922,18 @@
       const hHome = (plotH * it.home) / max;
       const hPub = (plotH * it.pub) / max;
       const faded = it.faded ? ' opacity="0.45"' : "";
-      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="3" fill="var(--accent)"${faded}/>`;
-      if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="3" fill="var(--public)"${faded}/>`;
+      svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" ` +
+        `rx="3" fill="var(--accent)"${faded}/>`;
+      if (hPub > 0)
+        svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" ` +
+          `rx="3" fill="var(--public)"${faded}/>`;
       if (step > 34) {
-        svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" text-anchor="middle" font-size="11" font-weight="500" ` +
+        svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" ` +
+          `text-anchor="middle" font-size="11" font-weight="500" ` +
           `fill="var(--fg)">${Math.round(it.home + it.pub)}</text>`;
       }
-      svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`;
+      svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" ` +
+        `fill="var(--muted)">${it.label}</text>`;
     });
     el.innerHTML = svg + "</svg>";
   }
@@ -931,7 +947,10 @@
    */
   function drawLineChart(el, points, average, options = {}) {
     const decimals = options.decimals ?? 1;
-    if (!points.length) { el.innerHTML = `<p class="empty">${options.empty || "יופיע כאן אחרי שתי מדידות עם קילומטראז׳."}</p>`; return; }
+    if (!points.length) {
+      el.innerHTML = `<p class="empty">${options.empty || "יופיע כאן אחרי שתי מדידות עם קילומטראז׳."}</p>`;
+      return;
+    }
     points = points.slice(-CHART_MAX_POINTS);
     const width = Math.max(280, el.clientWidth || 600);
     const left = 44, bottom = 26, top = 22;
@@ -957,7 +976,8 @@
     if (points.length > 1) {
       const path = points.map((p, i) => (i ? "L" : "M") + xAt(i) + " " + yAt(p.value)).join(" ");
       const floor = yAt(Math.max(low, 0));
-      svg += `<path d="${path} L${xAt(points.length - 1)} ${floor} L${xAt(0)} ${floor} Z" fill="var(--accent-soft)" stroke="none"/>`;
+      svg += `<path d="${path} L${xAt(points.length - 1)} ${floor} L${xAt(0)} ${floor} Z" ` +
+        `fill="var(--accent-soft)" stroke="none"/>`;
       svg += `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
     }
     // On a narrow screen, label every n-th month (always the latest) so labels do not overlap.
@@ -965,12 +985,16 @@
     points.forEach((p, i) => {
       const isLast = i === points.length - 1;
       const labelled = (points.length - 1 - i) % every === 0;
-      svg += `<circle cx="${xAt(i)}" cy="${yAt(p.value)}" r="${isLast ? 5.5 : 4}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+      svg += `<circle cx="${xAt(i)}" cy="${yAt(p.value)}" r="${isLast ? 5.5 : 4}" ` +
+        `fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
       if (labelled) {
-        svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" font-size="11" font-weight="${isLast ? 700 : 500}" ` +
+        svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" ` +
+          `font-size="11" font-weight="${isLast ? 700 : 500}" ` +
           `fill="var(--fg)">${formatNumber(p.value, decimals)}</text>`;
       }
-      if (labelled) svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+      if (labelled)
+        svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" ` +
+          `fill="var(--muted)">${p.label}</text>`;
     });
     el.innerHTML = svg + "</svg>";
   }
@@ -1002,8 +1026,10 @@
       const y = top + (plotH * g) / 4;
       svg += `<line x1="${left}" x2="${width - right}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
       const value = vHigh - ((vHigh - vLow) * g) / 4;
-      svg += `<text x="${left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--accent)">${formatNumber(value, 0)}</text>`;
-      svg += `<text x="${width - right + 6}" y="${y + 4}" font-size="11" fill="${TEMP}">${formatNumber(tHigh - ((tHigh - tLow) * g) / 4, 0)}°</text>`;
+      svg += `<text x="${left - 6}" y="${y + 4}" text-anchor="end" font-size="11" ` +
+        `fill="var(--accent)">${formatNumber(value, 0)}</text>`;
+      svg += `<text x="${width - right + 6}" y="${y + 4}" font-size="11" ` +
+        `fill="${TEMP}">${formatNumber(tHigh - ((tHigh - tLow) * g) / 4, 0)}°</text>`;
     }
     // Temperature line, broken where a month has no weather data.
     let path = "", pen = false;
@@ -1020,7 +1046,8 @@
       svg += `<circle cx="${xAt(i)}" cy="${yV(p.value)}" r="3.5" fill="var(--accent)"/>`;
       if (p.temp != null) svg += `<circle cx="${xAt(i)}" cy="${yT(p.temp)}" r="3" fill="${TEMP}"/>`;
       if ((points.length - 1 - i) % every === 0) {
-        svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+        svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" ` +
+          `fill="var(--muted)">${p.label}</text>`;
       }
     });
     // One tall, finger-wide target per month.
@@ -1041,11 +1068,15 @@
       const boxW = 176, boxH = 42;
       const x = Math.min(width - right - boxW, Math.max(left, cx - boxW / 2));
       const y = top + 2;
-      const second = formatNumber(p.value, 1) + " קוט״ש ל‑100 · " + (p.temp != null ? formatNumber(p.temp, 1) + " מעלות" : "אין טמפרטורה");
-      tip.innerHTML = `<line x1="${cx}" x2="${cx}" y1="${top}" y2="${top + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>` +
+      const second = formatNumber(p.value, 1) + " קוט״ש ל‑100 · " +
+        (p.temp != null ? formatNumber(p.temp, 1) + " מעלות" : "אין טמפרטורה");
+      tip.innerHTML = `<line x1="${cx}" x2="${cx}" y1="${top}" y2="${top + plotH}" ` +
+        `stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>` +
         `<rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" rx="8" fill="var(--fg)"/>` +
-        `<text x="${x + boxW / 2}" y="${y + 16}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--surface)">${p.name}</text>` +
-        `<text x="${x + boxW / 2}" y="${y + 33}" text-anchor="middle" font-size="11" fill="var(--surface)" direction="rtl">${second}</text>`;
+        `<text x="${x + boxW / 2}" y="${y + 16}" text-anchor="middle" font-size="12" font-weight="700" ` +
+          `fill="var(--surface)">${p.name}</text>` +
+        `<text x="${x + boxW / 2}" y="${y + 33}" text-anchor="middle" font-size="11" ` +
+          `fill="var(--surface)" direction="rtl">${second}</text>`;
     };
     let pinned = -1;
     el.querySelectorAll(".slot").forEach((r) => {
@@ -1064,7 +1095,8 @@
 
   /** "X ₪, מתוכם Y בית ו‑Z ציבורי" - the home / public split of an amount. */
   function describeSplit(home, pub) {
-    return formatNumber(home + pub) + " ₪, מתוכם " + formatNumber(home) + " ₪ טעינה ביתית ו‑" + formatNumber(pub) + " ₪ טעינה ציבורית";
+    return formatNumber(home + pub) + " ₪, מתוכם " + formatNumber(home) + " ₪ טעינה ביתית ו‑" + formatNumber(pub) +
+      " ₪ טעינה ציבורית";
   }
 
   function renderStatus() {
@@ -1102,22 +1134,28 @@
     $("k-save").textContent = formatNumber(saved, 0);
 
     const shown = months.slice(-CHART_MAX_POINTS);
-    drawCostChart($("c-cost"), shown.map((m, i) => ({ label: monthLabel(m.key, i === 0), home: m.costHome, pub: m.costPublic, faded: m.partial })));
+    drawCostChart($("c-cost"),
+      shown.map((m, i) => ({ label: monthLabel(m.key, i === 0), home: m.costHome, pub: m.costPublic,
+      faded: m.partial })));
     const lastFull = [...months].reverse().find((m) => !m.partial);
     let splitText = lastFull
-      ? "החודש המלא האחרון, " + monthName(lastFull.key) + ": " + describeSplit(lastFull.costHome, lastFull.costPublic) + "."
+      ? "החודש המלא האחרון, " + monthName(lastFull.key) + ": " +
+        describeSplit(lastFull.costHome, lastFull.costPublic) + "."
       : "";
-    if (shown.some((m) => m.partial)) splitText += (splitText ? " " : "") + "עמודה בהירה היא חודש שהמדידות לא מכסות את כל ימיו.";
+    if (shown.some((m) => m.partial)) splitText += (splitText ? " " : "") +
+      "עמודה בהירה היא חודש שהמדידות לא מכסות את כל ימיו.";
     if (pending.count) {
       splitText += (splitText ? " " : "") + (pending.count === 1
         ? "מאז המדידה האחרונה נרשמה טעינה ציבורית אחת בסך " + formatNumber(pending.cost) + " ₪. היא תיכנס"
-        : "מאז המדידה האחרונה נרשמו " + pending.count + " טעינות ציבוריות בסך " + formatNumber(pending.cost) + " ₪. הן ייכנסו") +
+        : "מאז המדידה האחרונה נרשמו " + pending.count + " טעינות ציבוריות בסך " +
+          formatNumber(pending.cost) + " ₪. הן ייכנסו") +
         " לתקופה הבאה כשתוזן מדידה.";
     }
     $("cost-split").textContent = splitText;
 
     const effMonths = months.filter((m) => m.efficiency != null).slice(-CHART_MAX_POINTS);
-    drawLineChart($("c-eff"), effMonths.map((m, i) => ({ label: monthLabel(m.key, i === 0), value: m.efficiency })), efficiency || 0);
+    drawLineChart($("c-eff"),
+      effMonths.map((m, i) => ({ label: monthLabel(m.key, i === 0), value: m.efficiency })), efficiency || 0);
     const trend = $("trend");
     trend.textContent = "";
     trend.className = "";
@@ -1125,7 +1163,8 @@
     if (lastFullEff && effMonths.length > 1 && efficiency) {
       const change = ((lastFullEff.efficiency - efficiency) / efficiency) * 100;
       trend.className = "pill " + (change <= 0 ? "good" : "warn");
-      trend.textContent = monthName(lastFullEff.key) + ": " + formatNumber(Math.abs(change), 0) + "% " + (change <= 0 ? "מתחת לממוצע" : "מעל הממוצע");
+      trend.textContent = monthName(lastFullEff.key) + ": " + formatNumber(Math.abs(change), 0) + "% " +
+        (change <= 0 ? "מתחת לממוצע" : "מעל הממוצע");
     }
 
     renderExtraCharts(model, months, fuelPerKm);
@@ -1145,7 +1184,8 @@
         ["מתוכם טעינה ציבורית", formatNumber(spent.public) + " ₪"],
         ...(pending.count ? [["טעינות ציבוריות מאז המדידה האחרונה", formatNumber(pending.cost) + " ₪"]] : []),
         ["אותם ק״מ בבנזין", formatNumber(petrolSoFar) + " ₪"],
-        ["עלות לק״מ: חשמל מול בנזין", formatNumber(costPerKm * 100, 0) + " מול " + formatNumber(fuelPerKm * 100, 0) + " אג׳"],
+        ["עלות לק״מ: חשמל מול בנזין",
+          formatNumber(costPerKm * 100, 0) + " מול " + formatNumber(fuelPerKm * 100, 0) + " אג׳"],
         ["קצב נסיעה", formatNumber(kmPerDay * 30) + " ק״מ בחודש"],
         ["תחזית ק״מ לשנה", formatNumber(yearKm) + " ק״מ"],
         ["תחזית עלות חשמל לשנה", formatNumber(yearCost) + " ₪"],
@@ -1156,8 +1196,10 @@
         ? "הצריכה מתוקנת לפי אחוז הסוללה ב‑" + driven.corrected + " מתוך " + spans.length + " תקופות. "
         : "";
       $("facts-note").textContent = corrected +
-        "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) + " ליטר ל‑100 ק״מ. " + (fuelPrices.length
-          ? "מחיר הבנזין בכל חודש הוא המחיר הרשמי של משרד האנרגיה, וכרגע " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר."
+        "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) +
+          " ליטר ל‑100 ק״מ. " + (fuelPrices.length
+          ? "מחיר הבנזין בכל חודש הוא המחיר הרשמי של משרד האנרגיה, וכרגע " +
+            formatNumber(currentFuelPrice, 2) + " ₪ לליטר."
           : "מחיר הבנזין הוא " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר.") +
         " אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
     } else {
@@ -1176,7 +1218,8 @@
     const withData = Object.keys(seasons).filter((name) => seasons[name].km > 0);
     $("season-panel").hidden = withData.length < 2;
     $("season").innerHTML = withData
-      .map((name) => `<div><dt>${name}</dt><dd>${formatNumber((seasons[name].kwh / seasons[name].km) * 100, 1)} קוט״ש ל‑100 ק״מ</dd></div>`)
+      .map((name) => `<div><dt>${name}</dt>` +
+        `<dd>${formatNumber((seasons[name].kwh / seasons[name].km) * 100, 1)} קוט״ש ל‑100 ק״מ</dd></div>`)
       .join("");
   }
 
@@ -1185,7 +1228,8 @@
     const { driven } = model;
     const withEff = months.filter((m) => m.efficiency != null);
     const cost100 = withEff.map((m) => ({ key: m.key, value: (m.efficiency * monthPricePerKwh(m)) || 0 }));
-    drawLineChart($("c-cost100"), cost100.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+    drawLineChart($("c-cost100"),
+      cost100.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
       driven.km ? (driven.cost / driven.km) * 100 : null, { decimals: 0 });
 
     // Per month: that month's petrol price divided by that month's electricity cost per km.
@@ -1194,7 +1238,8 @@
       .filter((p) => p.costPerKm > 0)
       .map((p) => ({ key: p.key, value: monthFuelPrice(p.key) / p.costPerKm }));
     const kplAverage = driven.km && driven.cost ? fuelPriceOn(todayIso()) / (driven.cost / driven.km) : null;
-    drawLineChart($("c-kpl"), kpl.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+    drawLineChart($("c-kpl"),
+      kpl.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
       kplAverage, { decimals: 0 });
 
     let running = 0;
@@ -1205,13 +1250,15 @@
       running += saving;
       cumulative.push({ key: m.key, value: running });
     }
-    drawLineChart($("c-saving"), cumulative.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+    drawLineChart($("c-saving"),
+      cumulative.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
       null, { decimals: 0, fromZero: true });
 
     const share = months.filter((m) => m.costHome + m.costPublic > 0)
       .map((m) => ({ key: m.key, value: (m.costPublic / (m.costHome + m.costPublic)) * 100 }));
     const totalShare = model.spent.total ? (model.spent.public / model.spent.total) * 100 : null;
-    drawLineChart($("c-share"), share.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
+    drawLineChart($("c-share"),
+      share.slice(-CHART_MAX_POINTS).map((p, i) => ({ label: monthLabel(p.key, i === 0), value: p.value })),
       totalShare, { decimals: 0, fromZero: true, empty: "יופיע כאן אחרי שתי מדידות." });
     $("share-note").textContent = totalShare != null
       ? "בכל התקופה " + formatNumber(totalShare, 0) + "% מההוצאה על חשמל היו טעינה ציבורית."
@@ -1239,7 +1286,8 @@
     }));
     if (points.some((p) => p.temp != null)) {
       drawTempTimeChart(el, points);
-      note.textContent = "נגיעה בחודש, או ריחוף במחשב, מראה את הצריכה ואת הטמפרטורה שלו. הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
+      note.textContent = "נגיעה בחודש, או ריחוף במחשב, מראה את הצריכה ואת הטמפרטורה שלו. " +
+        "הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
     } else if (weather.status === "loading") {
       el.innerHTML = '<p class="empty">טוען נתוני מזג אוויר…</p>';
       note.textContent = "";
@@ -1260,16 +1308,20 @@
     const total = providers.reduce((sum, p) => sum + p.cost, 0);
     const homeKwh = model.periods.reduce((sum, p) => sum + p.kwhHome, 0);
     const homePrice = homeKwh ? model.spent.home / homeKwh : null;
-    const header = "<tr><th>חברה</th><th>טעינות</th><th>קוט״ש</th><th>סה״כ ₪</th><th>₪ לקוט״ש</th><th>מההוצאה הציבורית</th></tr>";
+    const header = "<tr><th>חברה</th><th>טעינות</th><th>קוט״ש</th><th>סה״כ ₪</th>" +
+      "<th>₪ לקוט״ש</th><th>מההוצאה הציבורית</th></tr>";
     const rows = providers.map((p) =>
-      `<tr><td>${p.name ? providerLabel(p.name) : "ללא שם חברה"}</td><td>${p.count}</td><td>${formatNumber(p.kwh, 1)}</td>` +
+      `<tr><td>${p.name ? providerLabel(p.name) : "ללא שם חברה"}</td>` +
+        `<td>${p.count}</td><td>${formatNumber(p.kwh, 1)}</td>` +
       `<td>${formatNumber(p.cost)}</td><td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td>` +
       `<td>${total ? formatNumber((p.cost / total) * 100, 0) + "%" : "–"}</td></tr>`).join("");
     const homeRow = homePrice != null
-      ? bodyRow(["טעינה ביתית, להשוואה", "–", formatNumber(homeKwh, 1), formatNumber(model.spent.home), formatNumber(homePrice, 2), "–"], "muted-row")
+      ? bodyRow(["טעינה ביתית, להשוואה", "–", formatNumber(homeKwh, 1), formatNumber(model.spent.home),
+        formatNumber(homePrice, 2), "–"], "muted-row")
       : "";
     $("t-providers").innerHTML = header + rows + homeRow;
-    $("prov-summary").textContent = "ניתוח לפי חברת טעינה (" + providers.length + (providers.length === 1 ? " חברה)" : " חברות)");
+    $("prov-summary").textContent = "ניתוח לפי חברת טעינה (" + providers.length +
+      (providers.length === 1 ? " חברה)" : " חברות)");
   }
 
   /** One row per calendar year. */
@@ -1293,7 +1345,8 @@
       return `<tr><td>${y.year}</td><td>${y.partial ? y.days + " מתוך " + y.daysInYear + " (חלקית)" : y.days}</td>` +
         `<td>${y.km ? formatNumber(y.km) : "–"}</td><td>${formatNumber(y.kwhHome + y.kwhPublic)}</td>` +
         `<td>${formatNumber(y.costHome)}</td><td>${y.costPublic ? formatNumber(y.costPublic) : "–"}</td>` +
-        `<td><strong>${formatNumber(total)}</strong></td><td>${y.efficiency != null ? formatNumber(y.efficiency, 1) : "–"}</td>` +
+        `<td><strong>${formatNumber(total)}</strong></td>` +
+          `<td>${y.efficiency != null ? formatNumber(y.efficiency, 1) : "–"}</td>` +
         `<td>${y.km ? formatNumber(y.saving) : "–"}</td><td>${change}</td></tr>`;
     }).reverse().join("");
     $("t-years").innerHTML = header + rows;
@@ -1307,17 +1360,20 @@
       const header = "<tr><th>חודש</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th>" +
         "<th>עלות בית ₪</th><th>עלות ציבורי ₪</th><th>סה״כ ₪</th><th>קוט״ש/100</th></tr>";
       const rows = months.slice().reverse().map((m) =>
-        `<tr><td>${monthName(m.key)}</td><td>${m.partial ? m.days + " מתוך " + m.daysInMonth + " (חלקי)" : m.days}</td>` +
+        `<tr><td>${monthName(m.key)}</td>` +
+          `<td>${m.partial ? m.days + " מתוך " + m.daysInMonth + " (חלקי)" : m.days}</td>` +
         `<td>${m.km ? formatNumber(m.km) : "–"}</td><td>${formatNumber(m.kwhHome, 1)}</td>` +
         `<td>${m.kwhPublic ? formatNumber(m.kwhPublic, 1) : "–"}</td><td>${formatNumber(m.costHome)}</td>` +
-        `<td>${m.costPublic ? formatNumber(m.costPublic) : "–"}</td><td><strong>${formatNumber(m.costHome + m.costPublic)}</strong></td>` +
+        `<td>${m.costPublic ? formatNumber(m.costPublic) : "–"}</td>` +
+          `<td><strong>${formatNumber(m.costHome + m.costPublic)}</strong></td>` +
         `<td>${m.efficiency != null ? formatNumber(m.efficiency, 1) : "–"}</td></tr>`).join("");
       $("t-months").innerHTML = header + rows;
     } else {
       $("t-months").innerHTML = '<tr><td class="empty">עוד אין שתי מדידות להשוואה.</td></tr>';
     }
 
-    const deleteButton = (target) => `<button class="btn ghost small danger" data-del="${escapeHtml(target)}">מחק</button>`;
+    const deleteButton = (target) =>
+      `<button class="btn ghost small danger" data-del="${escapeHtml(target)}">מחק</button>`;
 
     if (periods.length) {
       const header = "<tr><th>עד תאריך</th><th>ימים</th><th>ק״מ</th><th>קוט״ש בית</th><th>קוט״ש ציבורי</th>" +
@@ -1326,13 +1382,16 @@
         const total = p.costHome + p.costPublic;
         const km = p.km != null ? formatNumber(p.km) : p.kmMerged ? formatNumber(p.kmMerged) + " *" : "חסר";
         const eff = p.efficiency != null ? formatNumber(p.efficiency, 1) + (p.mergedCount > 1 ? " *" : "") : "–";
-        return `<tr><td>${formatDate(p.to)}</td><td>${p.days}</td><td>${km}</td><td>${formatNumber(p.kwhHome, 1)}</td>` +
+        return `<tr><td>${formatDate(p.to)}</td><td>${p.days}</td><td>${km}</td>` +
+          `<td>${formatNumber(p.kwhHome, 1)}</td>` +
           `<td>${p.kwhPublic ? formatNumber(p.kwhPublic, 1) : "–"}</td><td>${formatNumber(p.costHome)}</td>` +
-          `<td>${p.costPublic ? formatNumber(p.costPublic) : "–"}</td><td><strong>${formatNumber(total)}</strong></td>` +
+          `<td>${p.costPublic ? formatNumber(p.costPublic) : "–"}</td>` +
+            `<td><strong>${formatNumber(total)}</strong></td>` +
           `<td>${eff}</td><td>${formatNumber(p.days ? (total / p.days) * 30 : null)}</td></tr>`;
       }).join("");
       const footnote = periods.some((p) => p.mergedCount > 1)
-        ? '<tr><td colspan="10" class="footnote">* חסר קילומטראז׳ במדידה קודמת, ולכן הק״מ והצריכה מחושבים על כמה תקופות יחד.</td></tr>'
+        ? '<tr><td colspan="10" class="footnote">* חסר קילומטראז׳ במדידה קודמת, ' +
+          'ולכן הק״מ והצריכה מחושבים על כמה תקופות יחד.</td></tr>'
         : "";
       $("t-periods").innerHTML = header + rows + footnote;
     } else {
@@ -1349,7 +1408,8 @@
           r.soc != null ? formatNumber(r.soc) + "%" : "–",
           deleteButton("readings/" + r.date),
         ]));
-      $("t-readings").innerHTML = headRow(["תאריך", "מונה קוט״ש", "קילומטראז׳", "₪ לקוט״ש", "סוללה", ""]) + rows.reverse().join("");
+      $("t-readings").innerHTML = headRow(["תאריך", "מונה קוט״ש", "קילומטראז׳", "₪ לקוט״ש", "סוללה", ""]) +
+        rows.reverse().join("");
     } else {
       $("t-readings").innerHTML = '<tr><td class="empty">עוד אין מדידות.</td></tr>';
     }
@@ -1373,7 +1433,8 @@
           escapeHtml(p.note),
           deleteButton("public/" + p.id),
         ]));
-      $("t-public").innerHTML = headRow(["תאריך", "חברה", "קוט״ש", "₪", "₪ לקוט״ש", "נספרת ב", "הערה", ""]) + rows.join("");
+      $("t-public").innerHTML = headRow(["תאריך", "חברה", "קוט״ש", "₪", "₪ לקוט״ש", "נספרת ב", "הערה", ""]) +
+        rows.join("");
     } else {
       $("t-public").innerHTML = '<tr><td class="empty">עוד לא נרשמו טעינות ציבוריות. מוסיפים בלשונית הזנה.</td></tr>';
     }
@@ -1384,7 +1445,10 @@
   function renderFuelPricesInfo() {
     const el = $("fuel-auto");
     if (!el) return;
-    if (!fuelPrices.length) { el.textContent = "המחירים הרשמיים עוד לא נטענו. עד שייטענו, החישוב משתמש במחיר שכאן."; return; }
+    if (!fuelPrices.length) {
+      el.textContent = "המחירים הרשמיים עוד לא נטענו. עד שייטענו, החישוב משתמש במחיר שכאן.";
+      return;
+    }
     const last = fuelPrices[fuelPrices.length - 1];
     el.textContent = "מחיר הבנזין מתעדכן אוטומטית לפי ההודעות של משרד האנרגיה. המחיר העדכני הוא " +
       formatNumber(last.price, 2) + " ₪ לליטר, מיום " + formatDate(last.from) +
@@ -1457,7 +1521,8 @@
       let kwhSinceAnchor = meter - anchor.meter +
         state.publicCharges.filter((p) => p.date > anchor.date && p.date <= date).reduce((sum, p) => sum + p.kwh, 0);
       const soc = inputNumber("r-soc");
-      if (soc != null && anchor.soc != null) kwhSinceAnchor = Math.max(0, kwhSinceAnchor - ((soc - anchor.soc) / 100) * state.settings.batteryKwh);
+      if (soc != null && anchor.soc != null) kwhSinceAnchor = Math.max(0,
+        kwhSinceAnchor - ((soc - anchor.soc) / 100) * state.settings.batteryKwh);
       text += " · " + formatNumber(km) + " ק״מ";
       if (km > 0) text += " · " + formatNumber((kwhSinceAnchor / km) * 100, 1) + " קוט״ש ל‑100 ק״מ";
       if (km > 0 && soc != null && anchor.soc != null) text += " (מתוקן לפי אחוז הסוללה)";
@@ -1476,9 +1541,11 @@
     const list = () => $("p-provider-list");
     const other = () => $("p-provider-other");
     let selected = PROVIDERS[0].id;
-    const options = [...PROVIDERS.map((p) => ({ id: p.id, name: p.name, icon: providerIcon(p.id) })), { id: OTHER_PROVIDER, name: "אחר", icon: null }];
+    const options = [...PROVIDERS.map((p) => ({ id: p.id, name: p.name, icon: providerIcon(p.id) })),
+      { id: OTHER_PROVIDER, name: "אחר", icon: null }];
 
-    const optionHtml = (o) => (o.icon ? `<img src="${o.icon}" alt="" width="28" height="28">` : '<span class="picker-blank" aria-hidden="true">…</span>') +
+    const optionHtml = (o) => (o.icon ? `<img src="${o.icon}" alt="" width="28" height="28">`
+      : '<span class="picker-blank" aria-hidden="true">…</span>') +
       `<span class="picker-name">${escapeHtml(o.name)}</span>`;
 
     function paint() {
@@ -1512,9 +1579,12 @@
     }
 
     function init() {
-      list().innerHTML = options.map((o) => `<li role="option" tabindex="-1" data-id="${o.id}" aria-selected="false">${optionHtml(o)}</li>`).join("");
+      list().innerHTML = options
+        .map((o) => `<li role="option" tabindex="-1" data-id="${o.id}" aria-selected="false">${optionHtml(o)}</li>`)
+        .join("");
       button().addEventListener("click", () => (list().hidden ? open() : close(true)));
-      button().addEventListener("keydown", (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
+      button().addEventListener("keydown",
+        (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
       list().addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) choose(li.dataset.id); });
       list().addEventListener("keydown", (e) => {
         const items = [...list().children];
@@ -1523,7 +1593,10 @@
         else if (e.key === "ArrowUp") { e.preventDefault(); items[Math.max(0, index - 1)].focus(); }
         else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
         else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
-        else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (index >= 0) choose(items[index].dataset.id); }
+        else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (index >= 0) choose(items[index].dataset.id);
+        }
         else if (e.key === "Escape" || e.key === "Tab") close(e.key === "Escape");
       });
       document.addEventListener("click", (e) => { if (!list().hidden && !e.target.closest(".picker")) close(false); });
@@ -1559,8 +1632,10 @@
     if (!(price > 0) || price > MAX_PRICE_PER_KWH) return showMessage("r-msg", "צריך מחיר לקוט״ש בשקלים, למשל 0.5451.");
 
     const { previous, next } = neighbours(date);
-    if (previous && meter < previous.meter) return showMessage("r-msg", "המונה נמוך מהמדידה הקודמת (" + formatNumber(previous.meter, 2) + "). בדוק את המספר.");
-    if (next && meter > next.meter) return showMessage("r-msg", "המונה גבוה מהמדידה שאחריה (" + formatNumber(next.meter, 2) + ").");
+    if (previous && meter < previous.meter) return showMessage("r-msg",
+      "המונה נמוך מהמדידה הקודמת (" + formatNumber(previous.meter, 2) + "). בדוק את המספר.");
+    if (next && meter > next.meter) return showMessage("r-msg",
+      "המונה גבוה מהמדידה שאחריה (" + formatNumber(next.meter, 2) + ").");
     const previousWithOdo = [...state.readings].reverse().find((r) => r.date < date && r.odo != null);
     if (odo != null && previousWithOdo && odo < previousWithOdo.odo) {
       return showMessage("r-msg", "הקילומטראז׳ נמוך מהמדידה הקודמת (" + formatNumber(previousWithOdo.odo) + ").");
@@ -1577,7 +1652,8 @@
         draft.readings.push({ date, meter, odo, price, soc });
       });
       delete $("r-price").dataset.touched;
-      showMessage("r-msg", "המדידה נשמרה." + (odo == null ? " בלי קילומטראז׳ הצריכה תחושב יחד עם התקופה הבאה." : ""), true);
+      showMessage("r-msg",
+        "המדידה נשמרה." + (odo == null ? " בלי קילומטראז׳ הצריכה תחושב יחד עם התקופה הבאה." : ""), true);
       $("r-meter").value = "";
       $("r-odo").value = "";
       $("r-soc").value = "";
@@ -1596,7 +1672,8 @@
     if (provider == null) return showMessage("p-msg", "כתוב את שם החברה, או בחר חברה מהרשימה.");
     const note = $("p-note").value.trim();
     if (!state.connected) return showMessage("p-msg", NOT_CONNECTED);
-    if (!date || !(kwh > 0) || cost == null || cost < 0) return showMessage("p-msg", "צריך תאריך, קוט״ש גדול מאפס וסכום.");
+    if (!date || !(kwh > 0) || cost == null || cost < 0) return showMessage("p-msg",
+      "צריך תאריך, קוט״ש גדול מאפס וסכום.");
     try {
       // Always appended as a new entry: it never replaces a reading or another charge.
       await mutate((draft) => { draft.publicCharges.push({ id: newChargeId(), date, kwh, cost, provider, note }); });
@@ -1627,7 +1704,8 @@
     const batteryKwh = inputNumber("s-battery");
     if (!state.connected) return showMessage("c-msg", NOT_CONNECTED);
     if (!(batteryKwh >= MIN_BATTERY_KWH && batteryKwh <= MAX_BATTERY_KWH)) {
-      return showMessage("c-msg", "קיבולת הסוללה צריכה להיות בין " + MIN_BATTERY_KWH + " ל‑" + MAX_BATTERY_KWH + " קוט״ש.");
+      return showMessage("c-msg",
+        "קיבולת הסוללה צריכה להיות בין " + MIN_BATTERY_KWH + " ל‑" + MAX_BATTERY_KWH + " קוט״ש.");
     }
     try {
       await mutate((draft) => { draft.settings = { ...draft.settings, batteryKwh }; });
@@ -1665,9 +1743,12 @@
       // The loan tab's inputs live only in the test file for now; keep them unless the real file has its own.
       const realHasLoan = real.content && real.content.loan && typeof real.content.loan === "object";
       await mutate((draft) => { Object.assign(draft, copy, realHasLoan ? {} : { loan: draft.loan }); });
-      showMessage("t-msg", "הועתקו " + copy.readings.length + " מדידות ו‑" + copy.publicCharges.length + " טעינות ציבוריות מהקובץ האמיתי.", true);
+      showMessage("t-msg",
+        "הועתקו " + copy.readings.length + " מדידות ו‑" + copy.publicCharges.length +
+        " טעינות ציבוריות מהקובץ האמיתי.", true);
     } catch (err) {
-      showMessage("t-msg", err && (err.auth || err.conflict) ? describeSaveError(err) : "ההעתקה נכשלה. בדוק את החיבור ונסה שוב.");
+      showMessage("t-msg",
+        err && (err.auth || err.conflict) ? describeSaveError(err) : "ההעתקה נכשלה. בדוק את החיבור ונסה שוב.");
     }
   }
 
@@ -1685,7 +1766,12 @@
     delete button.dataset.armed;
     button.textContent = "רוקן את קובץ הבדיקות";
     try {
-      await mutate((draft) => { draft.readings = []; draft.publicCharges = []; draft.settings = { ...DEFAULT_SETTINGS }; draft.loan = null; });
+      await mutate((draft) => {
+        draft.readings = [];
+        draft.publicCharges = [];
+        draft.settings = { ...DEFAULT_SETTINGS };
+        draft.loan = null;
+      });
       showMessage("t-msg", "קובץ הבדיקות רוקן.", true);
     } catch (err) {
       showMessage("t-msg", describeSaveError(err));
@@ -1751,7 +1837,8 @@
     returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
     kmMonth: null, horizonMonths: 36, schedules: [], expenses: [],
   };
-  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice", "altKmL", "altDepPct", "altMaint",
+  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice",
+    "altKmL", "altDepPct", "altMaint",
     "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth", "horizonMonths"];
 
   /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
@@ -1760,7 +1847,10 @@
     if (!raw || typeof raw !== "object") return loan;
     if (isIsoDate(raw.buyDate)) loan.buyDate = raw.buyDate;
     for (const key of LOAN_NUMBERS) {
-      if (raw[key] === null || raw[key] === "" || raw[key] === undefined) { loan[key] = key in raw ? null : DEFAULT_LOAN[key]; continue; }
+      if (raw[key] === null || raw[key] === "" || raw[key] === undefined) {
+        loan[key] = key in raw ? null : DEFAULT_LOAN[key];
+        continue;
+      }
       const n = Number(raw[key]);
       loan[key] = isFinite(n) && n >= 0 ? n : null;
     }
@@ -1768,7 +1858,8 @@
       const from = isIsoDate(s.from) ? s.from : null;
       const balance = Number(s.balance), ratePct = Number(s.ratePct), months = Math.round(Number(s.months));
       const payment = s.payment == null || s.payment === "" ? null : Number(s.payment);
-      if (from && balance > 0 && ratePct >= 0 && ratePct < 50 && months > 0 && months <= 600 && (payment == null || payment > 0)) {
+      if (from && balance > 0 && ratePct >= 0 && ratePct < 50 && months > 0 && months <= 600 &&
+        (payment == null || payment > 0)) {
         loan.schedules.push(payment ? { from, balance, ratePct, months, payment } : { from, balance, ratePct, months });
       }
     }
@@ -1865,7 +1956,10 @@
     const schedules = loan.schedules;
     const principal0 = schedules[0].balance;
     const ownCash = loan.carPrice - (loan.standAmount || 0) - principal0;
-    const loanEnd = schedules.reduce((end, s) => { const e = addMonths(s.from, s.months); return e > end ? e : end; }, loan.buyDate);
+    const loanEnd = schedules.reduce((end, s) => {
+      const e = addMonths(s.from, s.months);
+      return e > end ? e : end;
+    }, loan.buyDate);
     const todayIndex = Math.max(0, monthsBetween(loan.buyDate, today));
     // The comparison runs for the months chosen (both cars sold at the end), or else to the end of the loan.
     const horizon = Math.min(LOAN_MAX_MONTHS, loan.horizonMonths > 0
@@ -1882,15 +1976,18 @@
       if (!active) return { payment: 0, interest: 0, balance: principal0, schedule: null };
       // Payments fall on a fixed day each month, so count calendar months only: a schedule
       // that starts on the 12th has made its first payment by the 7th of the next month.
-      const k = (Number(date.slice(0, 4)) - Number(active.from.slice(0, 4))) * 12 + (Number(date.slice(5, 7)) - Number(active.from.slice(5, 7)));
+      const k = (Number(date.slice(0, 4)) - Number(active.from.slice(0, 4))) * 12 +
+        (Number(date.slice(5, 7)) - Number(active.from.slice(5, 7)));
       const balance = scheduleBalance(active, k);
       // A grace loan still open at its end is assumed refinanced on the same terms: interest only goes on.
       if (k > active.months && active.payment > 0 && balance > 0) {
-        return { payment: balance * (active.ratePct / 100 / 12), interest: balance * (active.ratePct / 100 / 12), balance, schedule: active, refinanced: true };
+        return { payment: balance * (active.ratePct / 100 / 12), interest: balance * (active.ratePct / 100 / 12),
+          balance, schedule: active, refinanced: true };
       }
       if (k < 1 || k > active.months) return { payment: 0, interest: 0, balance, schedule: active };
       const before = scheduleBalance(active, k - 1);
-      return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
+      return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance,
+        schedule: active };
     };
 
     // One-off costs on the day of purchase: a home charger for the Zeekr, a catch-up service for the used car.
@@ -1899,7 +1996,8 @@
     const a = { fv: loan.altPrice + upA, out: loan.altPrice + upA, fuel: 0, maint: 0, fee: 0 };
     // Zeekr maintenance: the bills entered, month by month, up to today; the yearly estimate after today.
     const paidByMonth = new Map();
-    for (const e of loan.expenses) paidByMonth.set(e.date.slice(0, 7), (paidByMonth.get(e.date.slice(0, 7)) || 0) + e.amount);
+    for (const e of loan.expenses) paidByMonth.set(e.date.slice(0, 7),
+      (paidByMonth.get(e.date.slice(0, 7)) || 0) + e.amount);
     const useBills = loan.expenses.length > 0;
     const rows = [];
     let km = 0, estimated = 0;
@@ -1907,7 +2005,8 @@
       const date = addMonths(loan.buyDate, i);
       const key = date.slice(0, 7);
       const loanNow = loanAt(date);
-      let row = { i, date, key, past: i <= todayIndex, km: 0, energy: 0, fuel: 0, payment: 0, interest: 0, estimate: false };
+      let row = { i, date, key, past: i <= todayIndex, km: 0, energy: 0, fuel: 0, payment: 0,
+        interest: 0, estimate: false };
       if (i > 0) {
         z.fv *= growth; a.fv *= growth;
         const m = byKey.get(key);
@@ -1924,11 +2023,13 @@
         z.energy += energy; z.maint += maintZ; z.fee += feeZ;
         a.fv += outA; a.out += outA; a.fuel += fuel; a.maint += maintA; a.fee += feeA;
         if (i <= todayIndex) { km += monthKm; if (!real) estimated += 1; }
-        row = { ...row, km: monthKm, energy, fuel, payment: loanNow.payment, interest: loanNow.interest, estimate: !real };
+        row = { ...row, km: monthKm, energy, fuel, payment: loanNow.payment,
+          interest: loanNow.interest, estimate: !real };
       }
       const valueZ = loan.carPrice * Math.pow(depZ, i / 12);
       const valueA = loan.altPrice * Math.pow(depA, i / 12);
-      const standOwed = loan.standFreeMonths > 0 && i >= loan.standFreeMonths ? 0 : (loan.standAmount || 0) * Math.pow(standDrop, i / 12);
+      const standOwed = loan.standFreeMonths > 0 && i >= loan.standFreeMonths ? 0
+        : (loan.standAmount || 0) * Math.pow(standDrop, i / 12);
       const costZ = z.fv + loanNow.balance + standOwed - valueZ;
       const costA = a.fv - valueA;
       row = {
@@ -1941,11 +2042,12 @@
         interest: z.payments + loanNow.balance - principal0,   // interest and any fee added on a new schedule
         energy: z.energy, maint: z.maint, fee: z.fee, upfront: upZ,
         lostReturn: z.fv - z.out,
-        standing: standOwed - (loan.standAmount || 0),         // negative: the part of the standing loan that is no longer owed
+        standing: standOwed - (loan.standAmount || 0),         // negative: the part no longer owed
       };
       row.outZ = z.out - ownCash - upZ;   // running cash out after the purchase day
       row.outA = a.out - loan.altPrice - upA;
-      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, maint: a.maint, fee: a.fee, upfront: upA, lostReturn: a.fv - a.out };
+      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, maint: a.maint, fee: a.fee, upfront: upA,
+        lostReturn: a.fv - a.out };
       rows.push(row);
     }
 
@@ -1982,7 +2084,10 @@
     high += span * 0.08;
     const xAt = (i) => left + (plotW * i) / Math.max(1, rows.length - 1);
     const yAt = (v) => top + plotH - (plotH * (v - low)) / (high - low);
-    const path = (from, to, f) => rows.slice(from, to + 1).map((r, j) => (j ? "L" : "M") + xAt(from + j).toFixed(1) + " " + yAt(f(r)).toFixed(1)).join(" ");
+    const path = (from, to, f) => rows
+      .slice(from, to + 1)
+      .map((r, j) => (j ? "L" : "M") + xAt(from + j).toFixed(1) + " " + yAt(f(r)).toFixed(1))
+      .join(" ");
 
     let svg = svgOpen(width, height);
     for (let g = 0; g <= 3; g++) {
@@ -1992,20 +2097,25 @@
     const t = Math.min(model.todayIndex, rows.length - 1);
     for (const [f, color] of [[(r) => r.costA, "var(--public)"], [(r) => r.costZ, "var(--accent)"]]) {
       svg += `<path d="${path(0, t, f)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>`;
-      if (t < rows.length - 1) svg += `<path d="${path(t, rows.length - 1, f)}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="5 4"/>`;
+      if (t < rows.length - 1)
+        svg += `<path d="${path(t, rows.length - 1, f)}" fill="none" stroke="${color}" ` +
+          `stroke-width="2" stroke-dasharray="5 4"/>`;
     }
-    svg += `<line x1="${xAt(t)}" x2="${xAt(t)}" y1="${top}" y2="${top + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>`;
+    svg += `<line x1="${xAt(t)}" x2="${xAt(t)}" y1="${top}" y2="${top + plotH}" ` +
+      `stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>`;
     const nearEnd = t > rows.length * 0.8;   // label on the left of the line when it is near the right edge
     svg += `<text x="${xAt(t)}" y="${top + 10}" text-anchor="${nearEnd ? "end" : "start"}" dx="${nearEnd ? -4 : 4}" ` +
       `font-size="11" fill="var(--muted)">היום</text>`;
     if (model.breakEven) {
       const b = model.breakEven;
-      svg += `<circle cx="${xAt(b.i)}" cy="${yAt(b.costZ)}" r="5.5" fill="var(--good)" stroke="var(--surface)" stroke-width="2"/>`;
+      svg += `<circle cx="${xAt(b.i)}" cy="${yAt(b.costZ)}" r="5.5" ` +
+        `fill="var(--good)" stroke="var(--surface)" stroke-width="2"/>`;
     }
     // Year labels along the bottom.
     for (const r of rows) {
       if (r.i % 12 !== 0) continue;
-      svg += `<text x="${xAt(r.i)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${r.i ? "שנה " + r.i / 12 : "קנייה"}</text>`;
+      svg += `<text x="${xAt(r.i)}" y="${height - 8}" text-anchor="middle" font-size="11" ` +
+        `fill="var(--muted)">${r.i ? "שנה " + r.i / 12 : "קנייה"}</text>`;
     }
     el.innerHTML = svg + "</svg>";
   }
@@ -2032,7 +2142,8 @@
       const e = m.costHome + m.costPublic;
       const f = (m.km / kmL) * monthFuelPrice(m.key);
       km += m.km; elec += e; fuel += f;
-      return bodyRow([monthName(m.key) + (m.partial ? " *" : ""), formatNumber(m.km), formatNumber(e), formatNumber(f), signedCell(f - e)]);
+      return bodyRow([monthName(m.key) + (m.partial ? " *" : ""), formatNumber(m.km), formatNumber(e), formatNumber(f),
+        signedCell(f - e)]);
     });
     $("ef-table").innerHTML = headRow(["חודש", "ק״מ", "חשמל ₪", "דלק ₪", "חיסכון ₪"]) + rows.reverse().join("") +
       bodyRow(["סה״כ", formatNumber(km), formatNumber(elec), formatNumber(fuel), formatNumber(fuel - elec)], "total");
@@ -2040,7 +2151,8 @@
       ["חשמל בפועל", money(elec)],
       ["אותם ק״מ בדלק", money(fuel)],
       ["חיסכון", money(fuel - elec)],
-      ["עלות לק״מ, חשמל מול דלק", formatNumber((elec / km) * 100, 0) + " מול " + formatNumber((fuel / km) * 100, 0) + " אג׳"],
+      ["עלות לק״מ, חשמל מול דלק",
+        formatNumber((elec / km) * 100, 0) + " מול " + formatNumber((fuel / km) * 100, 0) + " אג׳"],
     ]);
   }
 
@@ -2050,8 +2162,10 @@
     const model = buildLoanModel(loan, months, todayIso());
     const ready = !model.missing.length;
     $("loan-missing").hidden = ready;
-    $("loan-missing").textContent = ready ? "" : "כדי לחשב חסרים: " + model.missing.join(", ") + ". אפשר להזין אותם למטה, בנתוני הבסיס.";
-    for (const id of ["loan-view", "loan-tiles", "loan-summary", "loan-compare", "sale-panel", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
+    $("loan-missing").textContent = ready ? "" : "כדי לחשב חסרים: " + model.missing.join(", ") +
+      ". אפשר להזין אותם למטה, בנתוני הבסיס.";
+    for (const id of ["loan-view", "loan-tiles", "loan-summary", "loan-compare", "sale-panel", "loan-chart-panel",
+      "loan-detail-panel"]) $(id).hidden = !ready;
     renderLoanForm();
     if (!ready) return;
 
@@ -2063,7 +2177,8 @@
     const view = choice === "best" ? best : choice;
     const viewModel = view ? buildLoanModel({ ...loan, horizonMonths: view }, months, todayIso()) : model;
     const now = view ? viewModel.end : model.now;
-    const viewLabel = !view ? "עד היום" : choice === "best" ? "במכירה אחרי " + view + " חודשים" : "במכירה אחרי " + formatYears(view);
+    const viewLabel = !view ? "עד היום" : choice === "best" ? "במכירה אחרי " + view + " חודשים"
+      : "במכירה אחרי " + formatYears(view);
     $("lv-today").setAttribute("aria-pressed", String(!view));
     $("lv-years").value = choice ? String(choice) : "";
     $("lv-years").classList.toggle("on", !!view);
@@ -2082,7 +2197,8 @@
     pill.className = "pill " + (adv >= 0 ? "good" : "warn");
     $("loan-progress").style.width = Math.min(100, (model.todayIndex / Math.max(1, model.horizon)) * 100) + "%";
     $("loan-month").textContent = "חודש " + model.todayIndex + " מתוך " + model.horizon;
-    $("loan-forecast").textContent = "תחזית לסוף התקופה, " + formatDate(end.date) + ": " + money(Math.abs(end.advantage)) +
+    $("loan-forecast").textContent = "תחזית לסוף התקופה, " + formatDate(end.date) + ": " +
+      money(Math.abs(end.advantage)) +
       (end.advantage >= 0 ? " לטובת הזיקר." : " לטובת רכב היד השנייה.") +
       (model.breakEven ? " נקודת המפגש: " + monthName(model.breakEven.key) + "." : "");
 
@@ -2112,15 +2228,18 @@
       ["יוצא מהכיס בחודש", money(now.i ? now.outA / now.i : null)],
     ]);
     $("loan-monthly").textContent = now.i
-      ? "על פני " + now.i + " חודשים: הזיקר עולה " + money(now.costZ / now.i) + " בחודש והחלופה " + money(now.costA / now.i) +
-        ", הפרש של " + money(Math.abs(now.costZ - now.costA) / now.i) + " בחודש " + (now.costZ > now.costA ? "לטובת החלופה." : "לטובת הזיקר.") +
+      ? "על פני " + now.i + " חודשים: הזיקר עולה " + money(now.costZ / now.i) +
+        " בחודש והחלופה " + money(now.costA / now.i) +
+        ", הפרש של " + money(Math.abs(now.costZ - now.costA) / now.i) + " בחודש " +
+          (now.costZ > now.costA ? "לטובת החלופה." : "לטובת הזיקר.") +
         " עלות לחודש כוללת ירידת ערך ותשואה שאבדה. יוצא מהכיס הוא רק מה ששולם בפועל מדי חודש:" +
         " בזיקר ריבית, חשמל, טיפולים ואגרה, ובחלופה דלק, טיפולים ואגרה."
       : "";
 
     drawLoanChart($("c-loan"), model);
     renderSaleTiming(loan, months);
-    $("loan-chart-note").textContent = "קו מלא עד היום, מקווקו אחרי היום הוא תחזית לפי הממוצע." + (model.breakEven ? " הנקודה הירוקה היא נקודת המפגש." : "");
+    $("loan-chart-note").textContent = "קו מלא עד היום, מקווקו אחרי היום הוא תחזית לפי הממוצע." +
+      (model.breakEven ? " הנקודה הירוקה היא נקודת המפגש." : "");
 
     // Base data, then derived figures, then the formula and the month table.
     $("loan-base").innerHTML = factsHtml([
@@ -2149,10 +2268,12 @@
       ["סוף ההלוואה", formatDate(model.loanEnd)],
       ["יתרת הלוואה היום", money(model.now.balance)],
       ["חוב עומד היום", money(model.now.standOwed)],
-      ["טיפולים ששולמו בזיקר", model.useBills ? money(model.billsPaid) + " ב‑" + loan.expenses.length + " חשבונות" : "אין עדיין, לפי ההערכה"],
+      ["טיפולים ששולמו בזיקר",
+        model.useBills ? money(model.billsPaid) + " ב‑" + loan.expenses.length + " חשבונות" : "אין עדיין, לפי ההערכה"],
       ["שווי הזיקר היום", money(model.now.valueZ)],
       ["שווי החלופי היום", money(model.now.valueA)],
-      ["ק״מ בחודש לתחזית", formatNumber(model.kmEstimate, 0) + (loan.kmMonth > 0 ? " ק״מ, לפי ההגדרה" : " ק״מ, ממוצע המדידות")],
+      ["ק״מ בחודש לתחזית",
+        formatNumber(model.kmEstimate, 0) + (loan.kmMonth > 0 ? " ק״מ, לפי ההגדרה" : " ק״מ, ממוצע המדידות")],
       ["עלות חשמל לק״מ", model.costPerKm ? formatNumber(model.costPerKm * 100, 1) + " אג׳" : "אין עדיין מדידות"],
       ["חודשים לפי הערכה עד היום", formatNumber(model.estimatedMonths) + " מתוך " + formatNumber(model.todayIndex)],
     ]);
@@ -2169,7 +2290,8 @@
       "שווי זיקר", "שווי חלופי", "עלות זיקר", "עלות חלופי", "הפרש"]) +
       model.rows.map((r) => bodyRow([
         monthLabel(r.key, true) + (r.estimate && r.i ? " *" : ""),
-        ...[r.km, r.energy, r.fuel, r.payment, r.interest, r.balance, r.standOwed, r.valueZ, r.valueA, r.costZ, r.costA].map((v) => formatNumber(v)),
+        ...[r.km, r.energy, r.fuel, r.payment, r.interest, r.balance, r.standOwed, r.valueZ, r.valueA, r.costZ,
+          r.costA].map((v) => formatNumber(v)),
         signedCell(r.advantage),
       ], r.past ? "" : "muted-row")).join("");
   }
@@ -2181,12 +2303,14 @@
   function renderSaleTiming(loan, months) {
     const base = loan.horizonMonths > 0 ? Math.round(loan.horizonMonths) : 36;
     const standFree = loan.standFreeMonths > 0 ? [Math.round(loan.standFreeMonths)] : [];
-    const options = [...new Set([base, 36, 48, 60, 72, 84, ...standFree])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
+    const options = [...new Set([base, 36, 48, 60, 72, 84, ...standFree])].filter((h) => h >= 12 &&
+      h <= 84).sort((a, b) => a - b);
     let previous = null;
     const rows = options.map((h) => {
       const m = buildLoanModel({ ...loan, horizonMonths: h }, months, todayIso());
       const end = m.end;
-      const row = { h, date: end.date, costZ: end.costZ, costA: end.costA, adv: end.advantage, step: previous == null ? null : end.advantage - previous };
+      const row = { h, date: end.date, costZ: end.costZ, costA: end.costA, adv: end.advantage,
+        step: previous == null ? null : end.advantage - previous };
       previous = end.advantage;
       return row;
     });
@@ -2233,7 +2357,8 @@
     return v === 42 ? null : v;   // 3.5 years is no longer offered
   }
   function setLoanView(v) {
-    try { v ? localStorage.setItem(STORE.loanView, String(v)) : localStorage.removeItem(STORE.loanView); } catch (e) { /* storage unavailable */ }
+    try { v ? localStorage.setItem(STORE.loanView, String(v))
+      : localStorage.removeItem(STORE.loanView); } catch (e) { /* storage unavailable */ }
     render();
   }
 
@@ -2241,9 +2366,12 @@
 
   const LOAN_FIELDS = {
     "l-buy": "buyDate", "l-horizon": "horizonMonths", "l-km": "kmMonth",
-    "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee", "l-car-up": "carUpfront",
-    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint", "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
-    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths",
+    "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee",
+      "l-car-up": "carUpfront",
+    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint",
+      "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
+    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct",
+      "l-stand-free": "standFreeMonths",
   };
 
   /**
@@ -2265,7 +2393,8 @@
     for (const [id, key] of Object.entries(LOAN_FIELDS)) $(id).value = state.loan[key] ?? "";
     $("l-sched").innerHTML = "";
     for (const s of state.loan.schedules) addScheduleRow(s);
-    if (!state.loan.schedules.length) addScheduleRow({ from: state.loan.buyDate || "", balance: "", ratePct: "", months: "" });
+    if (!state.loan.schedules.length) addScheduleRow({ from: state.loan.buyDate || "", balance: "",
+      ratePct: "", months: "" });
     $("l-bills").innerHTML = "";
     for (const e of state.loan.expenses) addBillRow(e);
     setLoanLocked(!form.dataset.editing);
@@ -2276,10 +2405,14 @@
     row.className = "sched-row";
     row.innerHTML =
       `<label>מתאריך<input type="date" class="s-from" value="${escapeHtml(s.from || "")}"></label>` +
-      `<label>יתרה (₪)<input type="number" inputmode="decimal" step="any" class="s-bal" value="${s.balance ?? ""}"></label>` +
-      `<label>ריבית שנתית (%)<input type="number" inputmode="decimal" step="any" class="s-rate" value="${s.ratePct ?? ""}"></label>` +
-      `<label>חודשים<input type="number" inputmode="numeric" step="1" class="s-months" value="${s.months ?? ""}"></label>` +
-      `<label>החזר קבוע, ריק לשפיצר<input type="number" inputmode="decimal" step="any" class="s-pay" value="${s.payment ?? ""}"></label>` +
+      `<label>יתרה (₪)` +
+        `<input type="number" inputmode="decimal" step="any" class="s-bal" value="${s.balance ?? ""}"></label>` +
+      `<label>ריבית שנתית (%)` +
+        `<input type="number" inputmode="decimal" step="any" class="s-rate" value="${s.ratePct ?? ""}"></label>` +
+      `<label>חודשים` +
+        `<input type="number" inputmode="numeric" step="1" class="s-months" value="${s.months ?? ""}"></label>` +
+      `<label>החזר קבוע, ריק לשפיצר` +
+        `<input type="number" inputmode="decimal" step="any" class="s-pay" value="${s.payment ?? ""}"></label>` +
       `<button type="button" class="btn ghost small danger s-del" aria-label="מחק לוח">מחק</button>`;
     row.querySelector(".s-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
     $("l-sched").appendChild(row);
@@ -2291,7 +2424,8 @@
     row.className = "bill-row";
     row.innerHTML =
       `<label>תאריך<input type="date" class="b-date" value="${escapeHtml(e.date || "")}"></label>` +
-      `<label>סכום (₪)<input type="number" inputmode="decimal" step="any" class="b-amount" value="${e.amount ?? ""}"></label>` +
+      `<label>סכום (₪)` +
+        `<input type="number" inputmode="decimal" step="any" class="b-amount" value="${e.amount ?? ""}"></label>` +
       `<label>מה<input type="text" class="b-note" value="${escapeHtml(e.note || "")}"></label>` +
       `<button type="button" class="btn ghost small danger b-del" aria-label="מחק חשבון">מחק</button>`;
     row.querySelector(".b-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
@@ -2320,7 +2454,8 @@
     })).filter((e) => e.date || e.amount);
     const loan = normalizeLoan(raw);
     if (raw.expenses.length !== loan.expenses.length) return showMessage("l-msg", "בכל חשבון טיפול צריך תאריך וסכום.");
-    if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg", "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
+    if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg",
+      "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
     try {
       await mutate((draft) => { draft.loan = loan; });
       // Only after a successful save: a failed one keeps the form open with what was typed.
@@ -2362,8 +2497,10 @@
   /** Builds the CSV text for the given data (UTF-8 with BOM so Excel shows Hebrew correctly). */
   function toCsv(data) {
     const rows = [CSV_COLUMNS.map((c) => c.header)];
-    for (const r of data.readings) rows.push([TYPE_READING, r.date, r.meter, r.odo ?? "", r.price ?? "", "", "", "", "", "", r.soc ?? ""]);
-    for (const p of data.publicCharges) rows.push([TYPE_PUBLIC, p.date, "", "", "", p.kwh, p.cost, p.provider || "", p.note || "", p.id, ""]);
+    for (const r of data.readings) rows.push([TYPE_READING, r.date, r.meter, r.odo ?? "", r.price ?? "", "", "", "",
+      "", "", r.soc ?? ""]);
+    for (const p of data.publicCharges) rows.push([TYPE_PUBLIC, p.date, "", "", "", p.kwh, p.cost, p.provider || "",
+      p.note || "", p.id, ""]);
     const quote = (cell) => '"' + String(cell).replace(/"/g, '""') + '"';
     return "﻿" + rows.map((row) => row.map(quote).join(",")).join("\r\n");
   }
@@ -2378,7 +2515,8 @@
   function parseCsv(text) {
     text = String(text).replace(/^﻿/, "");
     const headerLine = text.split(/\r?\n/, 1)[0];
-    const delimiter = [",", ";", "\t"].reduce((best, d) => (headerLine.split(d).length > headerLine.split(best).length ? d : best), ",");
+    const delimiter = [",", ";",
+      "\t"].reduce((best, d) => (headerLine.split(d).length > headerLine.split(best).length ? d : best), ",");
     const rows = [];
     let row = [], cell = "", inQuotes = false;
     for (let i = 0; i < text.length; i++) {
@@ -2423,19 +2561,24 @@
       const readings = Array.isArray(json.readings) ? json.readings : [];
       const charges = Array.isArray(json.public) ? json.public : [];
       if (json.loan && typeof json.loan === "object") result.loan = normalizeLoan(json.loan);
-      if (!Array.isArray(json.readings) && !Array.isArray(json.public) && !result.loan) throw new Error("בקובץ ה‑JSON חסרות הרשימות readings ו‑public.");
+      if (!Array.isArray(json.readings) && !Array.isArray(json.public) &&
+        !result.loan) throw new Error("בקובץ ה‑JSON חסרות הרשימות readings ו‑public.");
       readings.forEach((raw, i) => accept("reading", raw, "readings[" + i + "]"));
       charges.forEach((raw, i) => accept("public", raw, "public[" + i + "]"));
-      if (json.settings && (json.settings.fuelPrice > 0 || json.settings.fuelL100 > 0 || json.settings.batteryKwh > 0)) result.settings = json.settings;
+      if (json.settings &&
+        (json.settings.fuelPrice > 0 || json.settings.fuelL100 > 0 ||
+        json.settings.batteryKwh > 0)) result.settings = json.settings;
       return result;
     }
 
     const rows = parseCsv(trimmed);
-    if (rows.filter((r) => !isBlankRow(r)).length < 2) throw new Error("בקובץ אין שורות נתונים. השורה הראשונה צריכה להיות שורת כותרות.");
+    if (rows.filter((r) => !isBlankRow(r)).length < 2)
+      throw new Error("בקובץ אין שורות נתונים. השורה הראשונה צריכה להיות שורת כותרות.");
     const columnOf = {};
     rows[0].forEach((header, index) => {
       const name = simplify(header);
-      const column = CSV_COLUMNS.find((c) => simplify(c.header) === name || c.aliases.some((a) => simplify(a) === name));
+      const column = CSV_COLUMNS.find((c) => simplify(c.header) === name ||
+        c.aliases.some((a) => simplify(a) === name));
       if (column && !(column.key in columnOf)) columnOf[column.key] = index;
     });
     if (!("date" in columnOf)) throw new Error("לא נמצאה עמודת תאריך. בדוק את שורת הכותרות.");
@@ -2452,7 +2595,8 @@
       if (["מדידה", "reading", "home", "בית"].includes(type)) kind = "reading";
       else if (["טעינהציבורית", "ציבורי", "ציבורית", "public"].includes(type)) kind = "public";
       else if (type === "") kind = raw.meter ? "reading" : raw.kwh ? "public" : null;
-      if (!kind) { result.rejected.push({ where, reason: type ? "סוג לא מוכר: " + raw.type : "שורה בלי מונה ובלי קוט״ש" }); return; }
+      if (!kind) { result.rejected.push({ where,
+        reason: type ? "סוג לא מוכר: " + raw.type : "שורה בלי מונה ובלי קוט״ש" }); return; }
       accept(kind, raw, where);
     });
     return result;
@@ -2518,19 +2662,22 @@
       }
     }
 
-    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings, loan: incoming.loan || current.loan };
+    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings,
+      loan: incoming.loan || current.loan };
 
     // The meter and the odometer only ever go up; a drop after the merge points at a typo in the file.
     const warnings = [];
     for (let i = 1; i < data.readings.length; i++) {
       if (data.readings[i].meter < data.readings[i - 1].meter) {
-        warnings.push("קריאת המונה ב‑" + formatDate(data.readings[i].date) + " נמוכה מהקריאה שלפניה (" + formatDate(data.readings[i - 1].date) + ").");
+        warnings.push("קריאת המונה ב‑" + formatDate(data.readings[i].date) + " נמוכה מהקריאה שלפניה (" +
+          formatDate(data.readings[i - 1].date) + ").");
       }
     }
     const withOdo = data.readings.filter((r) => r.odo != null);
     for (let i = 1; i < withOdo.length; i++) {
       if (withOdo[i].odo < withOdo[i - 1].odo) {
-        warnings.push("הקילומטראז׳ ב‑" + formatDate(withOdo[i].date) + " נמוך מהקילומטראז׳ ב‑" + formatDate(withOdo[i - 1].date) + ".");
+        warnings.push("הקילומטראז׳ ב‑" + formatDate(withOdo[i].date) + " נמוך מהקילומטראז׳ ב‑" +
+          formatDate(withOdo[i - 1].date) + ".");
       }
     }
     return { data, counts, warnings };
@@ -2584,7 +2731,8 @@
     }
     if (!parsed.readings.length && !parsed.publicCharges.length && !parsed.loan) {
       const first = parsed.rejected[0];
-      return setImportMessage("לא נמצאה בקובץ אף רשומה תקינה." + (first ? " לדוגמה, " + first.where + ": " + first.reason + "." : ""), "err");
+      return setImportMessage("לא נמצאה בקובץ אף רשומה תקינה." +
+        (first ? " לדוגמה, " + first.where + ": " + first.reason + "." : ""), "err");
     }
 
     const plan = planMerge(snapshot(), parsed);
@@ -2600,7 +2748,8 @@
       const shown = parsed.rejected.slice(0, 5).map((r) => r.where + " (" + r.reason + ")").join(", ");
       lines.push(parsed.rejected.length + " שורות לא ייובאו: " + shown + (parsed.rejected.length > 5 ? " ועוד." : "."));
     }
-    $("imp-text").innerHTML = "<strong>" + escapeHtml(file.name) + "</strong>" + lines.map((l) => "<br>" + escapeHtml(l)).join("");
+    $("imp-text").innerHTML = "<strong>" + escapeHtml(file.name) + "</strong>" +
+      lines.map((l) => "<br>" + escapeHtml(l)).join("");
     pendingImport = parsed;
     $("imp-box").hidden = false;
     setImportMessage("");
@@ -2619,7 +2768,8 @@
       });
       pendingImport = null;
       $("imp-box").hidden = true;
-      const changed = plan.counts.readings.added + plan.counts.readings.updated + plan.counts.publicCharges.added + plan.counts.publicCharges.updated;
+      const changed = plan.counts.readings.added + plan.counts.readings.updated + plan.counts.publicCharges.added +
+        plan.counts.publicCharges.updated;
       const summary = parsed.loan && changed === 0 ? "נתוני ההלוואה נשמרו ב‑OneDrive."
         : changed === 0 ? "לא היו שינויים לשמור."
         : changed === 1 ? "רשומה אחת נוספה או עודכנה ונשמרה ב‑OneDrive."
@@ -2648,7 +2798,8 @@
 
   /** base64url without padding, as PKCE requires. */
   function base64Url(buffer) {
-    return btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, "-").replace(/\//g,
+      "_").replace(/=+$/, "");
   }
 
   /** Sends the browser to Microsoft's sign-in page. */
@@ -2773,7 +2924,8 @@
     if (!accessToken) { requireSignIn(); throw authError(); }
     const headers = { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" };
     if (state.etag) headers["If-Match"] = state.etag;
-    const response = await fetch(FILE_URL + ":/content", { method: "PUT", headers, body: JSON.stringify(serializeData(data), null, 1) });
+    const response = await fetch(FILE_URL + ":/content",
+      { method: "PUT", headers, body: JSON.stringify(serializeData(data), null, 1) });
     if (response.status === 412) {
       await loadFromOneDrive().catch(() => {});
       const error = new Error("conflict");
@@ -2826,10 +2978,13 @@
     const pkce = JSON.parse(sessionStorage.getItem(STORE.pkce) || "{}");
     sessionStorage.removeItem(STORE.pkce);
     history.replaceState(null, "", REDIRECT_URI); // drop the one-time code from the address bar
-    if (query.has("error")) { requireSignIn("ההתחברות לא הושלמה (" + query.get("error") + "). אפשר לנסות שוב."); return false; }
-    if (!pkce.verifier || pkce.stateToken !== query.get("state")) { requireSignIn("ההתחברות לא הושלמה. נסה שוב."); return false; }
+    if (query.has("error")) { requireSignIn("ההתחברות לא הושלמה (" + query.get("error") +
+      "). אפשר לנסות שוב."); return false; }
+    if (!pkce.verifier ||
+      pkce.stateToken !== query.get("state")) { requireSignIn("ההתחברות לא הושלמה. נסה שוב."); return false; }
     try {
-      await requestToken({ grant_type: "authorization_code", code: query.get("code"), redirect_uri: REDIRECT_URI, code_verifier: pkce.verifier });
+      await requestToken({ grant_type: "authorization_code", code: query.get("code"), redirect_uri: REDIRECT_URI,
+        code_verifier: pkce.verifier });
       return true;
     } catch (err) {
       requireSignIn("ההתחברות נכשלה: " + err.message);
@@ -2861,7 +3016,8 @@
   const TABS = ["overview", "loan", "add", "history", "settings"];
 
   function showTab(tab) {
-    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected",
+      String(b.dataset.tab === tab)));
     for (const name of TABS) $("v-" + name).hidden = name !== tab;
     try { localStorage.setItem(STORE.tab, tab); } catch (e) { /* storage unavailable */ }
     if (tab === "overview" || tab === "loan") render(); // charts measure their container, so draw once it is visible
@@ -2880,7 +3036,8 @@
     $("seg-reading").addEventListener("click", () => showEntryForm("reading"));
     $("seg-public").addEventListener("click", () => showEntryForm("public"));
 
-    for (const id of ["r-date", "r-meter", "r-odo", "r-price", "r-soc"]) $(id).addEventListener("input", renderReadingPreview);
+    for (const id of ["r-date", "r-meter", "r-odo", "r-price", "r-soc"]) $(id).addEventListener("input",
+      renderReadingPreview);
     $("r-price").addEventListener("input", () => { $("r-price").dataset.touched = "1"; });
     $("f-reading").addEventListener("submit", onSubmitReading);
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
@@ -2889,19 +3046,27 @@
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
     $("lv-today").addEventListener("click", () => setLoanView(null));
-    $("lv-years").addEventListener("change", (e) => setLoanView(e.target.value === "best" ? "best" : Number(e.target.value) || null));
-    $("l-edit").addEventListener("click", () => { $("f-loan").dataset.editing = "1"; setLoanLocked(false); showMessage("l-msg", ""); });
-    $("l-cancel").addEventListener("click", () => { delete $("f-loan").dataset.dirty; delete $("f-loan").dataset.editing; renderLoanForm(); render(); });
-    $("l-add-bill").addEventListener("click", () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
-    $("l-add-sched").addEventListener("click", () => { addScheduleRow({ from: "", balance: "", ratePct: "", months: "" }); $("f-loan").dataset.dirty = "1"; });
+    $("lv-years").addEventListener("change",
+      (e) => setLoanView(e.target.value === "best" ? "best" : Number(e.target.value) || null));
+    $("l-edit").addEventListener("click",
+      () => { $("f-loan").dataset.editing = "1"; setLoanLocked(false); showMessage("l-msg", ""); });
+    $("l-cancel").addEventListener("click",
+      () => { delete $("f-loan").dataset.dirty; delete $("f-loan").dataset.editing; renderLoanForm(); render(); });
+    $("l-add-bill").addEventListener("click",
+      () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
+    $("l-add-sched").addEventListener("click",
+      () => { addScheduleRow({ from: "", balance: "", ratePct: "", months: "" }); $("f-loan").dataset.dirty = "1"; });
     providerPicker.init();
     document.addEventListener("click", onClickDelete);
 
-    $("export").addEventListener("click", () => downloadFile("zeekr-electric-" + todayIso() + ".csv", toCsv(state), "text/csv"));
+    $("export").addEventListener("click",
+      () => downloadFile("zeekr-electric-" + todayIso() + ".csv", toCsv(state), "text/csv"));
     $("dl-json").addEventListener("click", () => {
-      downloadFile("zeekr-data-" + todayIso() + ".json", JSON.stringify(serializeData(state), null, 2), "application/json");
+      downloadFile("zeekr-data-" + todayIso() + ".json", JSON.stringify(serializeData(state), null, 2),
+        "application/json");
     });
-    $("dl-template").addEventListener("click", () => downloadFile("zeekr-import-template.csv", templateCsv(), "text/csv"));
+    $("dl-template").addEventListener("click",
+      () => downloadFile("zeekr-import-template.csv", templateCsv(), "text/csv"));
     $("imp-file").addEventListener("change", onImportFileChosen);
     $("imp-go").addEventListener("click", onImportConfirmed);
     $("imp-cancel").addEventListener("click", onImportCancelled);
@@ -2954,7 +3119,8 @@
   const api = {
     parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, toCsv,
     normalizeReading, normalizePublicCharge, buildModel, buildMonths, buildYears,
-    normalizeLoan, buildLoanModel, bestSaleMonth, scheduleBalance, annuityPayment, annuityBalance, addMonths, monthsBetween,
+    normalizeLoan, buildLoanModel, bestSaleMonth, scheduleBalance, annuityPayment, annuityBalance,
+      addMonths, monthsBetween,
   };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
