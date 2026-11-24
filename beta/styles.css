@@ -346,3 +346,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 #v-loan #ef-table td { unicode-bidi: plaintext; }
 .bill-row { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
 @media (max-width: 560px) { .bill-row { grid-template-columns: 1fr 1fr; } .bill-row .b-del { grid-column: 1 / -1; } }
+/* Locked base data: read like values, not like empty boxes. */
+#f-loan.locked input { background: transparent; border-color: transparent; padding-inline: 0; color: var(--fg); opacity: 1; -webkit-text-fill-color: var(--fg); }
+#f-loan.locked .s-del, #f-loan.locked .b-del, #f-loan.locked #l-add-sched, #f-loan.locked #l-add-bill { display: none; }
+#loan-edit { display: flex; flex-direction: column; gap: 10px; }

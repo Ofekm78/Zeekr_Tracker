@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.11";
+  const APP_VERSION = "3.12";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -980,7 +980,9 @@
       let active = null;
       for (const s of schedules) if (s.from <= date) active = s;
       if (!active) return { payment: 0, interest: 0, balance: principal0, schedule: null };
-      const k = monthsBetween(active.from, date);
+      // Payments fall on a fixed day each month, so count calendar months only: a schedule
+      // that starts on the 12th has made its first payment by the 7th of the next month.
+      const k = (Number(date.slice(0, 4)) - Number(active.from.slice(0, 4))) * 12 + (Number(date.slice(5, 7)) - Number(active.from.slice(5, 7)));
       const balance = scheduleBalance(active, k);
       if (k < 1 || k > active.months) return { payment: 0, interest: 0, balance, schedule: active };
       const before = scheduleBalance(active, k - 1);
@@ -1740,6 +1742,18 @@
     "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth", "l-horizon": "horizonMonths",
   };
 
+  /**
+   * The base data is shown locked; the Edit button opens it for changes, and
+   * saving or cancelling locks it again.
+   */
+  function setLoanLocked(locked) {
+    const form = $("f-loan");
+    form.classList.toggle("locked", locked);
+    for (const el of form.elements) el.disabled = locked;
+    $("l-edit").hidden = !locked;
+    $("l-actions").hidden = locked;
+  }
+
   /** Fills the form from the saved data, unless the user is editing it. */
   function renderLoanForm() {
     const form = $("f-loan");
@@ -1750,6 +1764,7 @@
     if (!state.loan.schedules.length) addScheduleRow({ from: state.loan.buyDate || "", balance: "", ratePct: "", months: "" });
     $("l-bills").innerHTML = "";
     for (const e of state.loan.expenses) addBillRow(e);
+    setLoanLocked(!form.dataset.editing);
   }
 
   function addScheduleRow(s) {
@@ -1804,6 +1819,7 @@
     if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg", "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
     try {
       delete $("f-loan").dataset.dirty;
+      delete $("f-loan").dataset.editing;
       await mutate((draft) => { draft.loan = loan; });
       showMessage("l-msg", "נשמר.", true);
     } catch (err) {
@@ -2232,7 +2248,8 @@
       try { json = JSON.parse(trimmed); } catch (e) { throw new Error("קובץ ה‑JSON לא תקין: " + e.message); }
       const readings = Array.isArray(json.readings) ? json.readings : [];
       const charges = Array.isArray(json.public) ? json.public : [];
-      if (!Array.isArray(json.readings) && !Array.isArray(json.public)) throw new Error("בקובץ ה‑JSON חסרות הרשימות readings ו‑public.");
+      if (json.loan && typeof json.loan === "object") result.loan = normalizeLoan(json.loan);
+      if (!Array.isArray(json.readings) && !Array.isArray(json.public) && !result.loan) throw new Error("בקובץ ה‑JSON חסרות הרשימות readings ו‑public.");
       readings.forEach((raw, i) => accept("reading", raw, "readings[" + i + "]"));
       charges.forEach((raw, i) => accept("public", raw, "public[" + i + "]"));
       if (json.settings && (json.settings.fuelPrice > 0 || json.settings.fuelL100 > 0 || json.settings.batteryKwh > 0)) result.settings = json.settings;
@@ -2327,7 +2344,7 @@
       }
     }
 
-    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings, loan: current.loan };
+    const data = { readings: [...readings.values()].sort(byDate), publicCharges: charges.sort(byDate), settings, loan: incoming.loan || current.loan };
 
     // The meter and the odometer only ever go up; a drop after the merge points at a typo in the file.
     const warnings = [];
@@ -2391,7 +2408,7 @@
     } catch (err) {
       return setImportMessage(err.message, "err");
     }
-    if (!parsed.readings.length && !parsed.publicCharges.length) {
+    if (!parsed.readings.length && !parsed.publicCharges.length && !parsed.loan) {
       const first = parsed.rejected[0];
       return setImportMessage("לא נמצאה בקובץ אף רשומה תקינה." + (first ? " לדוגמה, " + first.where + ": " + first.reason + "." : ""), "err");
     }
@@ -2401,6 +2418,7 @@
       "מדידות: " + describeCounts(plan.counts.readings) + ".",
       "טעינות ציבוריות: " + describeCounts(plan.counts.publicCharges) + ".",
     ];
+    if (parsed.loan) lines.push("נתוני הבסיס של כרטיסיית ההלוואה יוחלפו בנתונים מהקובץ.");
     if (plan.counts.settingsChanged) lines.push("ההגדרות, רכב הבנזין וקיבולת הסוללה, יעודכנו לפי הקובץ.");
     lines.push("רשומות קיימות שלא מופיעות בקובץ נשארות ללא שינוי.");
     for (const warning of plan.warnings) lines.push("שים לב: " + warning);
@@ -2428,7 +2446,8 @@
       pendingImport = null;
       $("imp-box").hidden = true;
       const changed = plan.counts.readings.added + plan.counts.readings.updated + plan.counts.publicCharges.added + plan.counts.publicCharges.updated;
-      const summary = changed === 0 ? "לא היו שינויים לשמור."
+      const summary = parsed.loan && changed === 0 ? "נתוני ההלוואה נשמרו ב‑OneDrive."
+        : changed === 0 ? "לא היו שינויים לשמור."
         : changed === 1 ? "רשומה אחת נוספה או עודכנה ונשמרה ב‑OneDrive."
         : changed + " רשומות נוספו או עודכנו ונשמרו ב‑OneDrive.";
       setImportMessage("הייבוא הושלם: " + summary, "ok");
@@ -2659,6 +2678,8 @@
     $("f-car").addEventListener("submit", onSubmitCarSettings);
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
+    $("l-edit").addEventListener("click", () => { $("f-loan").dataset.editing = "1"; setLoanLocked(false); showMessage("l-msg", ""); });
+    $("l-cancel").addEventListener("click", () => { delete $("f-loan").dataset.dirty; delete $("f-loan").dataset.editing; renderLoanForm(); render(); });
     $("l-add-bill").addEventListener("click", () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
     $("l-add-sched").addEventListener("click", () => { addScheduleRow({ from: "", balance: "", ratePct: "", months: "" }); $("f-loan").dataset.dirty = "1"; });
     providerPicker.init();
