@@ -1,7 +1,7 @@
 /**
- * Browser test for the trial copy: opens beta/ in a real Chromium with
- * made-up data, goes through every tab and the loan views, and fails on any
- * script error or on a screen that did not fill in.
+ * Browser test for both copies of the app (beta/ and the main page): opens
+ * each in a real Chromium with made-up data, goes through every tab and the
+ * loan views, and fails on any script error or on a screen that did not fill in.
  *
  * Nothing leaves the machine: the page is served from this folder, every
  * request to another address (OneDrive, sign-in, fonts, weather) is blocked,
@@ -41,6 +41,12 @@ function sampleData() {
   };
 }
 
+/** The two copies: where each is served, and the offline-cache key it reads first. */
+const COPIES = [
+  { name: "trial copy", url: "/beta/", dir: "beta", cacheKey: "zk-data-test", trial: true },
+  { name: "main copy", url: "/", dir: ".", cacheKey: "zk-data", trial: false },
+];
+
 let server, browser, base;
 
 test.before(async () => {
@@ -65,83 +71,87 @@ test.after(async () => {
 });
 
 /** Opens the trial page with the sample data; returns the page and the list of script errors. */
-async function openApp(viewport) {
+async function openApp(copy, viewport) {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
-  await context.addInitScript((data) => {
+  await context.addInitScript(([key, data]) => {
     if (sessionStorage.getItem("seeded")) return;
-    localStorage.setItem("zk-data-test", JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(data));
     sessionStorage.setItem("seeded", "1");
-  }, sampleData());
+  }, [copy.cacheKey, sampleData()]);
   await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
-  await page.goto(base + "/beta/");
+  await page.goto(base + copy.url);
   await page.waitForSelector("#k-eff");
   return { page, errors };
 }
 
-test("version: header, Settings and the ?v= cache keys all match APP_VERSION", async () => {
-  const appJs = fs.readFileSync(path.join(ROOT, "beta/app.js"), "utf8");
-  const html = fs.readFileSync(path.join(ROOT, "beta/index.html"), "utf8");
-  const version = /const APP_VERSION = "([\d.]+)"/.exec(appJs)[1];
-  assert.match(html, new RegExp(`app\\.js\\?v=${version.replace(".", "\\.")}"`), "index.html loads app.js with the current version");
-  assert.match(html, new RegExp(`styles\\.css\\?v=${version.replace(".", "\\.")}"`), "index.html loads styles.css with the current version");
-  const { page, errors } = await openApp({ width: 400, height: 900 });
-  assert.equal(await page.textContent("#head-version"), "v" + version);
-  assert.equal(await page.textContent("#app-version"), version);
-  assert.deepEqual(errors, []);
-  await page.context().close();
-});
-
-test("every tab opens and fills in, on a phone and on a wide screen", async () => {
-  for (const viewport of [{ width: 400, height: 900 }, { width: 1280, height: 900 }]) {
-    const { page, errors } = await openApp(viewport);
-
-    await page.click('.tabs button[data-tab="overview"]');
-    assert.equal(await page.textContent("#k-eff"), "16.0", "average consumption");
-    assert.equal(await page.textContent("#k-cpk"), "8.0", "cost per km in agorot");
-    assert.ok(await page.locator("#c-cost svg").count(), "monthly cost chart drawn");
-
-    await page.click('.tabs button[data-tab="loan"]');
-    assert.equal(await page.isHidden("#loan-missing"), true, "no missing inputs");
-    for (const view of ["best", "24", "36", "84"]) {
-      await page.selectOption("#lv-years", view);
-      assert.match(await page.textContent("#tile-z"), /\d.*₪/, `Zeekr tile filled for view ${view}`);
-      assert.match(await page.textContent("#tile-a"), /\d.*₪/, `alternative tile filled for view ${view}`);
-    }
-    assert.match(await page.textContent("#lv-best"), /^הכי משתלם, \d+ חודשים$/);
-    await page.click("#lv-today");
-    assert.ok(await page.locator("#c-loan svg").count(), "loan chart drawn");
-    assert.ok((await page.locator("#sale-table tr").count()) > 2, "sale table filled");
-
-    await page.click('.tabs button[data-tab="add"]');
-    await page.fill("#r-meter", "2200");
-    await page.fill("#r-odo", "27000");
-    assert.match(await page.textContent("#r-preview"), /ק״מ/, "live summary under the reading form");
-
-    await page.click('.tabs button[data-tab="history"]');
-    assert.equal(await page.locator("#t-readings tr").count(), 8, "header and seven readings");
-
-    await page.click('.tabs button[data-tab="settings"]');
-    assert.equal(await page.isVisible("#beta-panel"), true, "trial tools shown on the trial copy");
-
-    assert.deepEqual(errors, [], `no script errors at ${viewport.width}px`);
+for (const copy of COPIES) {
+  test(`${copy.name}: version: header, Settings and the ?v= cache keys all match APP_VERSION`, async () => {
+    const appJs = fs.readFileSync(path.join(ROOT, copy.dir, "app.js"), "utf8");
+    const html = fs.readFileSync(path.join(ROOT, copy.dir, "index.html"), "utf8");
+    const version = /const APP_VERSION = "([\d.]+)"/.exec(appJs)[1];
+    assert.match(html, new RegExp(`app\\.js\\?v=${version.replace(".", "\\.")}"`), "index.html loads app.js with the current version");
+    assert.match(html, new RegExp(`styles\\.css\\?v=${version.replace(".", "\\.")}"`), "index.html loads styles.css with the current version");
+    const { page, errors } = await openApp(copy, { width: 400, height: 900 });
+    assert.equal(await page.textContent("#head-version"), "v" + version);
+    assert.equal(await page.textContent("#app-version"), version);
+    assert.equal(await page.title(), copy.trial ? "ZEEKR TRACKER TEST" : "ZEEKR TRACKER", "each copy keeps its own name");
+    assert.deepEqual(errors, []);
     await page.context().close();
-  }
-});
+  });
 
-test("loan base data is locked until Edit, and Cancel locks it again", async () => {
-  const { page, errors } = await openApp({ width: 400, height: 900 });
-  await page.click('.tabs button[data-tab="loan"]');
-  assert.equal(await page.isDisabled("#l-car"), true);
-  await page.click("#l-edit");
-  assert.equal(await page.isDisabled("#l-car"), false);
-  await page.fill("#l-car", "1");
-  await page.click("#l-cancel");
-  assert.equal(await page.isDisabled("#l-car"), true);
-  assert.equal(await page.inputValue("#l-car"), "150000", "cancel restores the saved value");
-  assert.deepEqual(errors, []);
-  await page.context().close();
-});
+  test(`${copy.name}: every tab opens and fills in, on a phone and on a wide screen`, async () => {
+    for (const viewport of [{ width: 400, height: 900 }, { width: 1280, height: 900 }]) {
+      const { page, errors } = await openApp(copy, viewport);
+
+      await page.click('.tabs button[data-tab="overview"]');
+      assert.equal(await page.textContent("#k-eff"), "16.0", "average consumption");
+      assert.equal(await page.textContent("#k-cpk"), "8.0", "cost per km in agorot");
+      assert.ok(await page.locator("#c-cost svg").count(), "monthly cost chart drawn");
+
+      await page.click('.tabs button[data-tab="loan"]');
+      assert.equal(await page.isHidden("#loan-missing"), true, "no missing inputs");
+      for (const view of ["best", "24", "36", "84"]) {
+        await page.selectOption("#lv-years", view);
+        assert.match(await page.textContent("#tile-z"), /\d.*₪/, `Zeekr tile filled for view ${view}`);
+        assert.match(await page.textContent("#tile-a"), /\d.*₪/, `alternative tile filled for view ${view}`);
+      }
+      assert.match(await page.textContent("#lv-best"), /^הכי משתלם, \d+ חודשים$/);
+      await page.click("#lv-today");
+      assert.ok(await page.locator("#c-loan svg").count(), "loan chart drawn");
+      assert.ok((await page.locator("#sale-table tr").count()) > 2, "sale table filled");
+
+      await page.click('.tabs button[data-tab="add"]');
+      await page.fill("#r-meter", "2200");
+      await page.fill("#r-odo", "27000");
+      assert.match(await page.textContent("#r-preview"), /ק״מ/, "live summary under the reading form");
+
+      await page.click('.tabs button[data-tab="history"]');
+      assert.equal(await page.locator("#t-readings tr").count(), 8, "header and seven readings");
+
+      await page.click('.tabs button[data-tab="settings"]');
+      assert.equal(await page.isVisible("#beta-panel"), copy.trial, "trial tools only on the trial copy");
+      assert.equal(await page.isVisible("#beta-banner"), copy.trial, "trial notice only on the trial copy");
+
+      assert.deepEqual(errors, [], `no script errors at ${viewport.width}px`);
+      await page.context().close();
+    }
+  });
+
+  test(`${copy.name}: loan base data is locked until Edit, and Cancel locks it again`, async () => {
+    const { page, errors } = await openApp(copy, { width: 400, height: 900 });
+    await page.click('.tabs button[data-tab="loan"]');
+    assert.equal(await page.isDisabled("#l-car"), true);
+    await page.click("#l-edit");
+    assert.equal(await page.isDisabled("#l-car"), false);
+    await page.fill("#l-car", "1");
+    await page.click("#l-cancel");
+    assert.equal(await page.isDisabled("#l-car"), true);
+    assert.equal(await page.inputValue("#l-car"), "150000", "cancel restores the saved value");
+    assert.deepEqual(errors, []);
+    await page.context().close();
+  });
+}

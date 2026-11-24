@@ -16,12 +16,24 @@
   sign-in, OneDrive and Google Fonts go straight to the network, untouched,
   so measurements are never served from this cache.
 
+  Files are requested with a version in the address (app.js?v=3.20). When a
+  new version is stored, older copies of the same file are deleted, so the
+  cache holds one copy of each file instead of one per version.
+
   Raise CACHE_VERSION to throw away everything cached by an older version.
 */
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2;
 const CACHE = "zk-main-v" + CACHE_VERSION;
 const SCOPE = self.registration.scope; // e.g. https://<site>/Zeekr_Tracker/
 const SKIP = "beta/";
+
+/** Deletes cached copies of the same file stored under another version (?v=...). */
+async function dropOlderVersions(cache, url) {
+  const path = url.split(/[?#]/)[0];
+  for (const old of await cache.keys()) {
+    if (old.url !== url && old.url.split(/[?#]/)[0] === path) await cache.delete(old);
+  }
+}
 
 self.addEventListener("install", (event) => {
   // Cache the page itself right away so the next launch is instant.
@@ -54,7 +66,10 @@ self.addEventListener("fetch", (event) => {
     const cached = await cache.match(key);
     const fresh = fetch(isPage ? SCOPE : request, { cache: "no-cache" })
       .then((response) => {
-        if (response.ok) cache.put(key, response.clone());
+        if (response.ok) {
+          cache.put(key, response.clone());
+          if (!isPage) dropOlderVersions(cache, request.url).catch(() => {});
+        }
         return response;
       });
     if (cached) {
