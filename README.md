@@ -24,6 +24,7 @@ The repository is public: no data files, readings or loan figures are committed.
 | `.github/workflows/fuel-prices.yml` | Runs the script every morning; a red run means this month's price was not found. |
 | `tests/` | Automatic tests: calculations on both copies, and a browser run through every tab. See `tests/README.md`. |
 | `.github/workflows/tests.yml` | Runs the tests on every pull request and on `main`. |
+| `CHANGELOG.md` | What changed in each version, in Hebrew, split into trial-only and on the main page. |
 | `logo/` | Master copies of the logo and symbol (SVG and PNG). Not loaded by the site. |
 | `GUIDELINES.md` | How code, comments, tests and commits are written here. Read it before any change. |
 
@@ -34,6 +35,7 @@ The repository is public: no data files, readings or loan figures are committed.
 2. Open a pull request; the tests must be green before it is merged.
 3. After Ofek approves the trial version, copy `app.js`, `styles.css` and
    `index.html` to the root (keeping the main name in `index.html`).
+4. Add the version and what changed to `CHANGELOG.md`.
 
 Sign-in uses a Microsoft Entra app registration for personal accounts with the
 `Files.ReadWrite.AppFolder` scope. Both page addresses (root and `/beta/`) must
