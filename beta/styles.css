@@ -350,3 +350,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 #f-loan.locked input { background: transparent; border-color: transparent; padding-inline: 0; color: var(--fg); opacity: 1; -webkit-text-fill-color: var(--fg); }
 #f-loan.locked .s-del, #f-loan.locked .b-del, #f-loan.locked #l-add-sched, #f-loan.locked #l-add-bill { display: none; }
 #loan-edit { display: flex; flex-direction: column; gap: 10px; }
+#sale-table td.pos { color: var(--good); font-weight: 600; }
+#sale-table td.neg { color: var(--bad); font-weight: 600; }
+#sale-table tr.best td { background: var(--accent-soft); }
+#v-loan #sale-table td { unicode-bidi: plaintext; }
