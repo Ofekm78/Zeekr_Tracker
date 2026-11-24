@@ -167,6 +167,11 @@ test rules (see `tests/README.md`).
 
 - Every change goes to `beta/` first. It's copied to the root (the main page)
   only after Ofek approves, together with its tests.
+- Versions count in tenths: a major number and one digit after the point. Each
+  update adds one tenth (4.0, 4.1 … 4.9), and the update after x.9 moves to the
+  next major number with .0 (4.9 is followed by 5.0, never 4.10). The beta
+  version is the one that counts; the main page takes the beta number when it
+  is promoted.
 - Every update raises the version. Change `APP_VERSION` in `app.js` and the
   `?v=` keys in `index.html` together; the header shows the version
   automatically. Raise `CACHE_VERSION` in `sw.js` only to throw away
