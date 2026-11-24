@@ -15,7 +15,7 @@
   sign-in, OneDrive and Google Fonts go straight to the network, untouched,
   so measurements are never served from this cache.
 
-  Files are requested with a version in the address (app.js?v=3.18). When a
+  Files are requested with a version in the address (app.js?v=3.20). When a
   new version is stored, older copies of the same file are deleted, so the
   cache holds one copy of each file instead of one per version.
 
