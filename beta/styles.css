@@ -344,3 +344,5 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 #ef-table td.neg { color: var(--bad); font-weight: 600; }
 #ef-table tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
 #v-loan #ef-table td { unicode-bidi: plaintext; }
+.bill-row { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+@media (max-width: 560px) { .bill-row { grid-template-columns: 1fr 1fr; } .bill-row .b-del { grid-column: 1 / -1; } }

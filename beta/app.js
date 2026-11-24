@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.9";
+  const APP_VERSION = "3.10";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -848,17 +848,17 @@
   /** Upper bound for the comparison horizon, in months. */
   const LOAN_MAX_MONTHS = 180;
   const DEFAULT_LOAN = {
-    buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null,
-    altPrice: 80000, altKmL: null, altDepPct: null, altIns: null, altMaint: null,
+    buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null, carFee: null, carUpfront: null,
+    altPrice: 80000, altKmL: null, altDepPct: null, altIns: null, altMaint: null, altFee: null, altUpfront: null,
     returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
-    kmMonth: null, schedules: [],
+    kmMonth: null, schedules: [], expenses: [],
   };
-  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "altPrice", "altKmL", "altDepPct", "altIns", "altMaint",
+  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice", "altKmL", "altDepPct", "altIns", "altMaint",
     "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth"];
 
   /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
   function normalizeLoan(raw) {
-    const loan = { ...DEFAULT_LOAN, schedules: [] };
+    const loan = { ...DEFAULT_LOAN, schedules: [], expenses: [] };
     if (!raw || typeof raw !== "object") return loan;
     if (typeof raw.buyDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.buyDate)) loan.buyDate = raw.buyDate;
     for (const key of LOAN_NUMBERS) {
@@ -874,6 +874,13 @@
         loan.schedules.push(payment ? { from, balance, ratePct, months, payment } : { from, balance, ratePct, months });
       }
     }
+    // Maintenance actually paid for the Zeekr: one entry per bill.
+    for (const e of Array.isArray(raw.expenses) ? raw.expenses : []) {
+      const date = typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : null;
+      const amount = Number(e.amount);
+      if (date && amount > 0) loan.expenses.push({ date, amount, note: String(e.note || "").slice(0, 80) });
+    }
+    loan.expenses.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     // 3.8 stored litres per 100 km; it is now km per litre.
     if (!(loan.altKmL > 0) && Number(raw.altL100) > 0) loan.altKmL = 100 / Number(raw.altL100);
     loan.schedules.sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
@@ -979,8 +986,14 @@
       return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
     };
 
-    const z = { fv: ownCash, out: ownCash, payments: 0, interest: 0, energy: 0, ins: 0, maint: 0 };
-    const a = { fv: loan.altPrice, out: loan.altPrice, fuel: 0, ins: 0, maint: 0 };
+    // One-off costs on the day of purchase: a home charger for the Zeekr, a catch-up service for the used car.
+    const upZ = loan.carUpfront || 0, upA = loan.altUpfront || 0;
+    const z = { fv: ownCash + upZ, out: ownCash + upZ, payments: 0, interest: 0, energy: 0, ins: 0, maint: 0, fee: 0 };
+    const a = { fv: loan.altPrice + upA, out: loan.altPrice + upA, fuel: 0, ins: 0, maint: 0, fee: 0 };
+    // Zeekr maintenance: the bills entered, month by month, up to today; the yearly estimate after today.
+    const paidByMonth = new Map();
+    for (const e of loan.expenses) paidByMonth.set(e.date.slice(0, 7), (paidByMonth.get(e.date.slice(0, 7)) || 0) + e.amount);
+    const useBills = loan.expenses.length > 0;
     const rows = [];
     let km = 0, estimated = 0;
     for (let i = 0; i <= horizon; i++) {
@@ -995,13 +1008,14 @@
         const monthKm = real ? m.km : kmEstimate || 0;
         const energy = real ? m.costHome + m.costPublic : monthKm * (costPerKm || 0);
         const fuel = (monthKm / altKmPerLitre(loan)) * monthFuelPrice(key);
-        const insZ = (loan.carIns || 0) / 12, maintZ = (loan.carMaint || 0) / 12;
-        const insA = (loan.altIns || 0) / 12, maintA = (loan.altMaint || 0) / 12;
-        const outZ = state_.payment + energy + insZ + maintZ;
-        const outA = fuel + insA + maintA;
+        const insZ = (loan.carIns || 0) / 12, feeZ = (loan.carFee || 0) / 12;
+        const maintZ = useBills && i <= todayIndex ? (paidByMonth.get(key) || 0) : (loan.carMaint || 0) / 12;
+        const insA = (loan.altIns || 0) / 12, maintA = (loan.altMaint || 0) / 12, feeA = (loan.altFee || 0) / 12;
+        const outZ = state_.payment + energy + insZ + maintZ + feeZ;
+        const outA = fuel + insA + maintA + feeA;
         z.fv += outZ; z.out += outZ; z.payments += state_.payment; z.interest += state_.interest;
-        z.energy += energy; z.ins += insZ; z.maint += maintZ;
-        a.fv += outA; a.out += outA; a.fuel += fuel; a.ins += insA; a.maint += maintA;
+        z.energy += energy; z.ins += insZ; z.maint += maintZ; z.fee += feeZ;
+        a.fv += outA; a.out += outA; a.fuel += fuel; a.ins += insA; a.maint += maintA; a.fee += feeA;
         if (i <= todayIndex) { km += monthKm; if (!real) estimated += 1; }
         row = { ...row, km: monthKm, energy, fuel, payment: state_.payment, interest: state_.interest, estimate: !real };
       }
@@ -1015,11 +1029,11 @@
       row.partsZ = {
         depreciation: loan.carPrice - valueZ,
         interest: z.payments + state_.balance - principal0,   // interest and any fee added on a new schedule
-        energy: z.energy, ins: z.ins, maint: z.maint,
+        energy: z.energy, ins: z.ins, maint: z.maint, fee: z.fee, upfront: upZ,
         lostReturn: z.fv - z.out,
         standing: standOwed - (loan.standAmount || 0),         // negative: the part of the standing loan that is no longer owed
       };
-      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, ins: a.ins, maint: a.maint, lostReturn: a.fv - a.out };
+      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, ins: a.ins, maint: a.maint, fee: a.fee, upfront: upA, lostReturn: a.fv - a.out };
       rows.push(row);
     }
 
@@ -1029,7 +1043,7 @@
       if (rows[i - 1].advantage < 0) { breakEven = rows[i]; break; }
     }
     return {
-      missing, rows, todayIndex, horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
+      missing, rows, todayIndex, useBills, billsPaid: loan.expenses.reduce((s, e) => s + e.amount, 0), horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
       kmSoFar: km, estimatedMonths: estimated, firstPayment: schedulePayment(schedules[0]),
       now: rows[Math.min(todayIndex, rows.length - 1)], end: rows[rows.length - 1],
     };
@@ -1655,8 +1669,10 @@
       ["ירידת ערך", money(pz.depreciation)],
       ["ריבית ועמלות", money(pz.interest)],
       ["חשמל", money(pz.energy)],
-      ["ביטוח", money(pz.ins)],
-      ["טיפולים", money(pz.maint)],
+      ...(pz.ins ? [["ביטוח", money(pz.ins)]] : []),
+      ["טיפולים" + (model.useBills ? ", בפועל" : ""), money(pz.maint)],
+      ["אגרת רישוי", money(pz.fee)],
+      ["מטען ביתי", money(pz.upfront)],
       ["תשואה שאבדה", money(pz.lostReturn)],
       ["הלוואה עומדת שנשחקה", money(pz.standing)],
       ["<b>סה״כ עלות</b>", "<b>" + money(now.costZ) + "</b>"],
@@ -1664,8 +1680,10 @@
     $("loan-a").innerHTML = factsHtml([
       ["ירידת ערך", money(pa.depreciation)],
       ["דלק", money(pa.fuel)],
-      ["ביטוח", money(pa.ins)],
+      ...(pa.ins ? [["ביטוח", money(pa.ins)]] : []),
       ["טיפולים", money(pa.maint)],
+      ["אגרת רישוי", money(pa.fee)],
+      ["טיפול יישור קו בקנייה", money(pa.upfront)],
       ["תשואה שאבדה", money(pa.lostReturn)],
       ["<b>סה״כ עלות</b>", "<b>" + money(now.costA) + "</b>"],
     ]);
@@ -1681,13 +1699,15 @@
       ["הלוואה עומדת, ביטוח לאומי", money(loan.standAmount || 0)],
       ["מזומן במעמד הקנייה", money(model.ownCash)],
       ["ירידת ערך שנתית, זיקר", pct(loan.carDepPct)],
-      ["ביטוח שנתי, זיקר", money(loan.carIns)],
-      ["טיפולים בשנה, זיקר", money(loan.carMaint)],
+      ["טיפולים בשנה, זיקר", money(loan.carMaint) + (model.useBills ? ", לתחזית" : "")],
+      ["אגרת רישוי בשנה, זיקר", money(loan.carFee)],
+      ["מטען ביתי", money(loan.carUpfront)],
       ["מחיר הרכב החלופי", money(loan.altPrice)],
       ["צריכת דלק, חלופי", formatNumber(altKmPerLitre(loan), 1) + " ק״מ לליטר"],
       ["ירידת ערך שנתית, חלופי", pct(loan.altDepPct)],
-      ["ביטוח שנתי, חלופי", money(loan.altIns)],
       ["טיפולים בשנה, חלופי", money(loan.altMaint)],
+      ["אגרת רישוי בשנה, חלופי", money(loan.altFee)],
+      ["טיפול יישור קו בקנייה", money(loan.altUpfront)],
       ["תשואה שנתית בגמל", pct(loan.returnPct)],
       ["שחיקת החוב העומד בשנה", pct(loan.standDropPct)],
       ["חודשים עד שאין החזר עומד", loan.standFreeMonths > 0 ? formatNumber(loan.standFreeMonths) : "אין"],
@@ -1697,6 +1717,7 @@
       ["סוף ההלוואה", formatDate(model.loanEnd)],
       ["יתרת הלוואה היום", money(now.balance)],
       ["חוב עומד היום", money(now.standOwed)],
+      ["טיפולים ששולמו בזיקר", model.useBills ? money(model.billsPaid) + " ב‑" + loan.expenses.length + " חשבונות" : "אין עדיין, לפי ההערכה"],
       ["שווי הזיקר היום", money(now.valueZ)],
       ["שווי החלופי היום", money(now.valueA)],
       ["ק״מ בחודש לתחזית", formatNumber(model.kmEstimate, 0) + (loan.kmMonth > 0 ? " ק״מ, לפי ההגדרה" : " ק״מ, ממוצע המדידות")],
@@ -1712,8 +1733,8 @@
   /* ---------- Base data form ---------- */
 
   const LOAN_FIELDS = {
-    "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-ins": "carIns", "l-car-maint": "carMaint",
-    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-ins": "altIns", "l-alt-maint": "altMaint",
+    "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee", "l-car-up": "carUpfront", "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
+    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint",
     "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth",
   };
 
@@ -1725,6 +1746,8 @@
     $("l-sched").innerHTML = "";
     for (const s of state.loan.schedules) addScheduleRow(s);
     if (!state.loan.schedules.length) addScheduleRow({ from: state.loan.buyDate || "", balance: "", ratePct: "", months: "" });
+    $("l-bills").innerHTML = "";
+    for (const e of state.loan.expenses) addBillRow(e);
   }
 
   function addScheduleRow(s) {
@@ -1739,6 +1762,19 @@
       `<button type="button" class="btn ghost small danger s-del" aria-label="מחק לוח">מחק</button>`;
     row.querySelector(".s-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
     $("l-sched").appendChild(row);
+  }
+
+  /** One maintenance bill of the Zeekr in the base-data form. */
+  function addBillRow(e) {
+    const row = document.createElement("div");
+    row.className = "bill-row";
+    row.innerHTML =
+      `<label>תאריך<input type="date" class="b-date" value="${escapeHtml(e.date || "")}"></label>` +
+      `<label>סכום (₪)<input type="number" inputmode="decimal" step="any" class="b-amount" value="${e.amount ?? ""}"></label>` +
+      `<label>מה<input type="text" class="b-note" value="${escapeHtml(e.note || "")}"></label>` +
+      `<button type="button" class="btn ghost small danger b-del" aria-label="מחק חשבון">מחק</button>`;
+    row.querySelector(".b-del").addEventListener("click", () => { row.remove(); $("f-loan").dataset.dirty = "1"; });
+    $("l-bills").appendChild(row);
   }
 
   async function onSubmitLoan(event) {
@@ -1756,7 +1792,13 @@
       months: parseNumber(row.querySelector(".s-months").value),
       payment: parseNumber(row.querySelector(".s-pay").value),
     })).filter((s) => s.from || s.balance);
+    raw.expenses = [...document.querySelectorAll("#l-bills .bill-row")].map((row) => ({
+      date: row.querySelector(".b-date").value,
+      amount: parseNumber(row.querySelector(".b-amount").value),
+      note: row.querySelector(".b-note").value.trim(),
+    })).filter((e) => e.date || e.amount);
     const loan = normalizeLoan(raw);
+    if (raw.expenses.length !== loan.expenses.length) return showMessage("l-msg", "בכל חשבון טיפול צריך תאריך וסכום.");
     if (raw.schedules.length !== loan.schedules.length) return showMessage("l-msg", "בכל לוח סילוקין צריך תאריך, יתרה, ריבית ומספר חודשים.");
     try {
       delete $("f-loan").dataset.dirty;
@@ -2615,6 +2657,7 @@
     $("f-car").addEventListener("submit", onSubmitCarSettings);
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
+    $("l-add-bill").addEventListener("click", () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
     $("l-add-sched").addEventListener("click", () => { addScheduleRow({ from: "", balance: "", ratePct: "", months: "" }); $("f-loan").dataset.dirty = "1"; });
     providerPicker.init();
     document.addEventListener("click", onClickDelete);
