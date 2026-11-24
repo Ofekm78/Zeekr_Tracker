@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.13";
+  const APP_VERSION = "3.14";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -1040,6 +1040,8 @@
         lostReturn: z.fv - z.out,
         standing: standOwed - (loan.standAmount || 0),         // negative: the part of the standing loan that is no longer owed
       };
+      row.outZ = z.out - ownCash - upZ;   // running cash out after the purchase day
+      row.outA = a.out - loan.altPrice - upA;
       row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, ins: a.ins, maint: a.maint, fee: a.fee, upfront: upA, lostReturn: a.fv - a.out };
       rows.push(row);
     }
@@ -1683,6 +1685,8 @@
       ["תשואה שאבדה", money(pz.lostReturn)],
       ["הלוואה עומדת שנשחקה", money(pz.standing)],
       ["<b>סה״כ עלות</b>", "<b>" + money(now.costZ) + "</b>"],
+      ["<b>עלות לחודש</b>", "<b>" + money(now.i ? now.costZ / now.i : null) + "</b>"],
+      ["יוצא מהכיס בחודש", money(now.i ? now.outZ / now.i : null)],
     ]);
     $("loan-a").innerHTML = factsHtml([
       ["ירידת ערך", money(pa.depreciation)],
@@ -1693,7 +1697,13 @@
       ["טיפול יישור קו בקנייה", money(pa.upfront)],
       ["תשואה שאבדה", money(pa.lostReturn)],
       ["<b>סה״כ עלות</b>", "<b>" + money(now.costA) + "</b>"],
+      ["<b>עלות לחודש</b>", "<b>" + money(now.i ? now.costA / now.i : null) + "</b>"],
+      ["יוצא מהכיס בחודש", money(now.i ? now.outA / now.i : null)],
     ]);
+    $("loan-monthly").textContent = now.i
+      ? "על פני " + now.i + " חודשים: הזיקר עולה " + money(now.costZ / now.i) + " בחודש והחלופה " + money(now.costA / now.i) + ", הפרש של " + money(Math.abs(now.costZ - now.costA) / now.i) + " בחודש " + (now.costZ > now.costA ? "לטובת החלופה." : "לטובת הזיקר.") +
+        " עלות לחודש כוללת ירידת ערך ותשואה שאבדה. יוצא מהכיס הוא רק מה ששולם בפועל מדי חודש: בזיקר ריבית, חשמל, טיפולים ואגרה, ובחלופה דלק, טיפולים ואגרה."
+      : "";
 
     drawLoanChart($("c-loan"), model);
     renderSaleTiming(loan, months);
@@ -1745,7 +1755,7 @@
    */
   function renderSaleTiming(loan, months) {
     const base = loan.horizonMonths > 0 ? Math.round(loan.horizonMonths) : 36;
-    const options = [...new Set([base, 36, 48, 60, 72, 84])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
+    const options = [...new Set([base, 36, 48, 60, 72, 84, ...(loan.standFreeMonths > 0 ? [Math.round(loan.standFreeMonths)] : [])])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
     let previous = null;
     const rows = options.map((h) => {
       const m = buildLoanModel({ ...loan, horizonMonths: h }, months, todayIso());
@@ -1755,8 +1765,8 @@
       return row;
     });
     const best = rows.reduce((b, r) => (r.adv > b.adv ? r : b), rows[0]);
-    $("sale-table").innerHTML = "<tr><th>מכירה</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th><th>שינוי</th></tr>" +
-      rows.map((r) => `<tr${r === best ? ' class="best"' : ""}><td>${r.h % 12 ? r.h + " חודשים" : r.h / 12 + " שנים"}<br><small>${formatDate(r.date)}</small></td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.adv >= 0 ? "pos" : "neg"}">${formatNumber(r.adv)}</td><td>${r.step == null ? "–" : (r.step >= 0 ? "+" : "") + formatNumber(r.step)}</td></tr>`).join("");
+    $("sale-table").innerHTML = "<tr><th>מכירה</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th><th>הפרש לחודש</th><th>שינוי</th></tr>" +
+      rows.map((r) => `<tr${r === best ? ' class="best"' : ""}><td>${r.h % 12 ? r.h + " חודשים" : r.h / 12 + " שנים"}<br><small>${formatDate(r.date)}</small></td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.adv >= 0 ? "pos" : "neg"}">${formatNumber(r.adv)}</td><td>${formatNumber(r.adv / r.h)}</td><td>${r.step == null ? "–" : (r.step >= 0 ? "+" : "") + formatNumber(r.step)}</td></tr>`).join("");
     $("sale-note").textContent = (best.adv >= 0
       ? "הכי משתלם למכור אחרי " + (best.h / 12) + " שנים: " + money(best.adv) + " לטובת הזיקר."
       : "בכל מועד הזיקר יקר יותר. הפער הכי קטן במכירה אחרי " + (best.h / 12) + " שנים: " + money(-best.adv) + ".") +

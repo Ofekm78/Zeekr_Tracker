@@ -354,3 +354,4 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 #sale-table td.neg { color: var(--bad); font-weight: 600; }
 #sale-table tr.best td { background: var(--accent-soft); }
 #v-loan #sale-table td { unicode-bidi: plaintext; }
+.loan-two .full-row { grid-column: 1 / -1; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; color: var(--fg); }
