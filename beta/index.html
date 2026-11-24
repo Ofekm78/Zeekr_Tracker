@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.15">
-  <script src="app.js?v=3.15" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.16">
+  <script src="app.js?v=3.16" defer></script>
 </head>
 <body>
 
@@ -178,8 +178,8 @@
       <label class="lv-select">לפי שנים<select id="lv-years"><option value="">בחר</option><option value="24">שנתיים</option><option value="36">3 שנים</option><option value="42">3.5 שנים</option><option value="48">4 שנים</option><option value="60">5 שנים</option><option value="72">6 שנים</option><option value="84">7 שנים</option></select></label>
     </div>
     <div class="loan-tiles" id="loan-tiles">
-      <div class="loan-tile"><div class="lab"><i class="loan-dot z"></i>הזיקר</div><div class="loan-tile-num" id="tile-z">–</div><div class="sub" id="tile-z-sub"></div></div>
-      <div class="loan-tile"><div class="lab"><i class="loan-dot a"></i>יד שנייה וגמל</div><div class="loan-tile-num" id="tile-a">–</div><div class="sub" id="tile-a-sub"></div></div>
+      <div class="loan-tile"><div class="lab"><i class="loan-dot z"></i>Zeekr</div><div class="loan-tile-num" id="tile-z">–</div><div class="sub" id="tile-z-sub"></div></div>
+      <div class="loan-tile"><div class="lab"><i class="loan-dot a"></i>רכב יד שנייה</div><div class="loan-tile-num" id="tile-a">–</div><div class="sub" id="tile-a-sub"></div></div>
     </div>
 
     <div class="panel" id="loan-summary">
@@ -193,8 +193,8 @@
 
     <div class="loan-two" id="loan-compare">
       <p class="sub full-row" id="loan-monthly"></p>
-      <div class="panel"><h2><i class="loan-dot z"></i>הזיקר</h2><dl class="facts one" id="loan-z"></dl></div>
-      <div class="panel"><h2><i class="loan-dot a"></i>יד שנייה וגמל</h2><dl class="facts one" id="loan-a"></dl></div>
+      <div class="panel"><h2><i class="loan-dot z"></i>Zeekr</h2><dl class="facts one" id="loan-z"></dl></div>
+      <div class="panel"><h2><i class="loan-dot a"></i>רכב יד שנייה</h2><dl class="facts one" id="loan-a"></dl></div>
     </div>
 
     <div class="panel" id="sale-panel">
@@ -206,7 +206,7 @@
 
     <div class="panel" id="loan-chart-panel">
       <h2>עלות מצטברת</h2>
-      <div class="legend"><span><i class="home"></i>הזיקר</span><span><i class="public"></i>יד שנייה וגמל</span></div>
+      <div class="legend"><span><i class="home"></i>Zeekr</span><span><i class="public"></i>רכב יד שנייה</span></div>
       <div class="chart" id="c-loan"></div>
       <p class="sub" id="loan-chart-note"></p>
     </div>
@@ -271,7 +271,7 @@
             <div class="full" id="l-sched"></div>
             <button class="btn ghost small full" type="button" id="l-add-sched">הוסף לוח סילוקין</button>
 
-            <h3 class="full">רכב יד שנייה וגמל</h3>
+            <h3 class="full">רכב יד שנייה</h3>
             <label>מחיר הרכב (₪)<input type="number" inputmode="decimal" step="any" id="l-alt"></label>
             <label>ק״מ לליטר<input type="number" inputmode="decimal" step="any" id="l-alt-kml"></label>
             <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-alt-dep"></label>
