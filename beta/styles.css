@@ -12,6 +12,9 @@
  *   5. Forms and buttons
  *   6. Tables
  *   7. Import guide
+ *   8. Electric blue theme: header, floating menu, wide screens
+ *   9. Charging-company picker
+ *  10. Car financing screen (the loan tab)
  */
 
 /* ---------- 1. Design tokens ---------- */
@@ -286,7 +289,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
   #v-overview > .kpis, #v-overview > .panel:has(#facts), #v-overview > #prov-panel, #v-overview > #season-panel { grid-column: 1 / -1; }
 }
 
-/* ---------- Charging-company picker (public charge form) ---------- */
+/* ---------- 9. Charging-company picker (public charge form) ---------- */
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field-label { font-size: 0.9rem; color: var(--muted); }
 .picker { position: relative; }
@@ -321,7 +324,7 @@ body { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
 /* Version next to the name in the header. */
 .head-version { font-family: var(--body); font-size: 0.8rem; font-weight: 600; letter-spacing: 0; opacity: 0.8; vertical-align: middle; background: rgba(255, 255, 255, 0.18); border-radius: 999px; padding: 2px 8px; margin-inline-start: 4px; white-space: nowrap; }
 
-/* ---------- Car financing screen ---------- */
+/* ---------- 10. Car financing screen ---------- */
 .loan-big { font-family: var(--display); font-size: 2.4rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .loan-big.good { color: var(--good); }
 .loan-big.bad { color: var(--bad); }
