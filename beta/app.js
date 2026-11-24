@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.19";
+  const APP_VERSION = "3.20";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -2216,8 +2216,8 @@
    * The sale month, from one to seven years, with the highest advantage of
    * the Zeekr per month of ownership (the peak of advantage / months).
    */
-  function bestSaleMonth(loan, months) {
-    const m = buildLoanModel({ ...loan, horizonMonths: 84 }, months, todayIso());
+  function bestSaleMonth(loan, months, today = todayIso()) {
+    const m = buildLoanModel({ ...loan, horizonMonths: 84 }, months, today);
     if (m.missing.length) return null;
     let best = null;
     for (const r of m.rows) if (r.i >= 12 && (!best || r.advantage / r.i > best.advantage / best.i)) best = r;
@@ -2953,8 +2953,8 @@
   // The pure functions are exposed for automated checks and for debugging in the console.
   const api = {
     parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, toCsv,
-    buildModel, buildMonths,
-    normalizeLoan, buildLoanModel, scheduleBalance, annuityPayment, addMonths, monthsBetween,
+    normalizeReading, normalizePublicCharge, buildModel, buildMonths, buildYears,
+    normalizeLoan, buildLoanModel, bestSaleMonth, scheduleBalance, annuityPayment, annuityBalance, addMonths, monthsBetween,
   };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
