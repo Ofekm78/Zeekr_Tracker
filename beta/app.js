@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.12";
+  const APP_VERSION = "3.13";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -984,6 +984,10 @@
       // that starts on the 12th has made its first payment by the 7th of the next month.
       const k = (Number(date.slice(0, 4)) - Number(active.from.slice(0, 4))) * 12 + (Number(date.slice(5, 7)) - Number(active.from.slice(5, 7)));
       const balance = scheduleBalance(active, k);
+      // A grace loan still open at its end is assumed refinanced on the same terms: interest only goes on.
+      if (k > active.months && active.payment > 0 && balance > 0) {
+        return { payment: balance * (active.ratePct / 100 / 12), interest: balance * (active.ratePct / 100 / 12), balance, schedule: active, refinanced: true };
+      }
       if (k < 1 || k > active.months) return { payment: 0, interest: 0, balance, schedule: active };
       const before = scheduleBalance(active, k - 1);
       return { payment: schedulePayment(active), interest: before * (active.ratePct / 100 / 12), balance, schedule: active };
@@ -1650,7 +1654,7 @@
     const ready = !model.missing.length;
     $("loan-missing").hidden = ready;
     $("loan-missing").textContent = ready ? "" : "כדי לחשב חסרים: " + model.missing.join(", ") + ". אפשר להזין אותם למטה, בנתוני הבסיס.";
-    for (const id of ["loan-summary", "loan-compare", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
+    for (const id of ["loan-summary", "loan-compare", "sale-panel", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
     renderLoanForm();
     if (!ready) return;
 
@@ -1692,6 +1696,7 @@
     ]);
 
     drawLoanChart($("c-loan"), model);
+    renderSaleTiming(loan, months);
     $("loan-chart-note").textContent = "קו מלא עד היום, מקווקו אחרי היום הוא תחזית לפי הממוצע." + (model.breakEven ? " הנקודה הירוקה היא נקודת המפגש." : "");
 
     // Base data, then derived figures, then the formula and the month table.
@@ -1732,6 +1737,30 @@
       loan.schedules.map((s) => `<tr><td>${formatDate(s.from)}</td><td>${money(s.balance)}</td><td>${pct(s.ratePct)}</td><td>${s.months}</td><td>${money(schedulePayment(s))}${s.payment > 0 ? ", קבוע" : ""}</td><td>${money(scheduleBalance(s, s.months))}</td></tr>`).join("");
     $("loan-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל</th><th>דלק בחלופי</th><th>החזר</th><th>מתוכו ריבית</th><th>יתרה</th><th>חוב עומד</th><th>שווי זיקר</th><th>שווי חלופי</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th></tr>" +
       model.rows.map((r) => `<tr class="${r.past ? "" : "muted-row"}"><td>${monthLabel(r.key, true)}${r.estimate && r.i ? " *" : ""}</td><td>${formatNumber(r.km)}</td><td>${formatNumber(r.energy)}</td><td>${formatNumber(r.fuel)}</td><td>${formatNumber(r.payment)}</td><td>${formatNumber(r.interest)}</td><td>${formatNumber(r.balance)}</td><td>${formatNumber(r.standOwed)}</td><td>${formatNumber(r.valueZ)}</td><td>${formatNumber(r.valueA)}</td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.advantage >= 0 ? "pos" : "neg"}">${formatNumber(r.advantage)}</td></tr>`).join("");
+  }
+
+  /**
+   * When to sell: the same comparison ended at several sale dates (both cars
+   * sold together at the end), from the chosen period up to seven years.
+   */
+  function renderSaleTiming(loan, months) {
+    const base = loan.horizonMonths > 0 ? Math.round(loan.horizonMonths) : 36;
+    const options = [...new Set([base, 36, 48, 60, 72, 84])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
+    let previous = null;
+    const rows = options.map((h) => {
+      const m = buildLoanModel({ ...loan, horizonMonths: h }, months, todayIso());
+      const end = m.end;
+      const row = { h, date: end.date, costZ: end.costZ, costA: end.costA, adv: end.advantage, step: previous == null ? null : end.advantage - previous };
+      previous = end.advantage;
+      return row;
+    });
+    const best = rows.reduce((b, r) => (r.adv > b.adv ? r : b), rows[0]);
+    $("sale-table").innerHTML = "<tr><th>מכירה</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th><th>שינוי</th></tr>" +
+      rows.map((r) => `<tr${r === best ? ' class="best"' : ""}><td>${r.h % 12 ? r.h + " חודשים" : r.h / 12 + " שנים"}<br><small>${formatDate(r.date)}</small></td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.adv >= 0 ? "pos" : "neg"}">${formatNumber(r.adv)}</td><td>${r.step == null ? "–" : (r.step >= 0 ? "+" : "") + formatNumber(r.step)}</td></tr>`).join("");
+    $("sale-note").textContent = (best.adv >= 0
+      ? "הכי משתלם למכור אחרי " + (best.h / 12) + " שנים: " + money(best.adv) + " לטובת הזיקר."
+      : "בכל מועד הזיקר יקר יותר. הפער הכי קטן במכירה אחרי " + (best.h / 12) + " שנים: " + money(-best.adv) + ".") +
+      " הפרש חיובי הוא לטובת הזיקר. אחרי סוף הלוח האחרון ההלוואה ממוחזרת באותה ריבית, והק״מ העתידיים לפי הממוצע שלך.";
   }
 
   /* ---------- Base data form ---------- */
