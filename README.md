@@ -25,6 +25,7 @@ The repository is public: no data files, readings or loan figures are committed.
 | `tests/` | Automatic tests: calculations on both copies, and a browser run through every tab. See `tests/README.md`. |
 | `.github/workflows/tests.yml` | Runs the tests on every pull request and on `main`. |
 | `logo/` | Master copies of the logo and symbol (SVG and PNG). Not loaded by the site. |
+| `GUIDELINES.md` | How code, comments, tests and commits are written here. Read it before any change. |
 
 ## How a change goes out
 
