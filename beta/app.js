@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.16";
+  const APP_VERSION = "3.17";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -1662,12 +1662,15 @@
 
     const end = model.end;
     // The view chosen at the top: as of today (selling today), or a sale after a number of years.
-    const view = loanView();
+    const choice = loanView();
+    const best = bestSaleMonth(loan, months);
+    $("lv-best").textContent = best ? "הכי משתלם, " + best + " חודשים" : "הכי משתלם";
+    const view = choice === "best" ? best : choice;
     const viewModel = view ? buildLoanModel({ ...loan, horizonMonths: view }, months, todayIso()) : model;
     const now = view ? viewModel.end : model.now;
-    const viewLabel = view ? "במכירה אחרי " + formatYears(view) : "עד היום";
+    const viewLabel = !view ? "עד היום" : choice === "best" ? "במכירה אחרי " + view + " חודשים" : "במכירה אחרי " + formatYears(view);
     $("lv-today").setAttribute("aria-pressed", String(!view));
-    $("lv-years").value = view ? String(view) : "";
+    $("lv-years").value = choice ? String(choice) : "";
     $("lv-years").classList.toggle("on", !!view);
     $("tile-z").textContent = money(now.i ? now.costZ / now.i : null);
     $("tile-a").textContent = money(now.i ? now.costA / now.i : null);
@@ -1793,11 +1796,25 @@
     return y === 1 ? "שנה" : y === 2 ? "שנתיים" : formatNumber(y, y % 1 ? 1 : 0) + " שנים";
   }
 
-  /** The view chosen at the top of the loan tab: null for today, or the sale month. Kept per device. */
+  /**
+   * The sale month, from one to seven years, with the highest advantage of
+   * the Zeekr per month of ownership (the peak of advantage / months).
+   */
+  function bestSaleMonth(loan, months) {
+    const m = buildLoanModel({ ...loan, horizonMonths: 84 }, months, todayIso());
+    if (m.missing.length) return null;
+    let best = null;
+    for (const r of m.rows) if (r.i >= 12 && (!best || r.advantage / r.i > best.advantage / best.i)) best = r;
+    return best ? best.i : null;
+  }
+
+  /** The view chosen at the top of the loan tab: null for today, a sale month, or "best". Kept per device. */
   function loanView() {
     let v = null;
-    try { v = Number(localStorage.getItem("zk-loan-view")) || null; } catch (e) { /* storage unavailable */ }
-    return v;
+    try { v = localStorage.getItem("zk-loan-view"); } catch (e) { /* storage unavailable */ }
+    if (v === "best") return v;
+    v = Number(v) || null;
+    return v === 42 ? null : v;   // 3.5 years is no longer offered
   }
   function setLoanView(v) {
     try { v ? localStorage.setItem("zk-loan-view", String(v)) : localStorage.removeItem("zk-loan-view"); } catch (e) { /* storage unavailable */ }
@@ -2749,7 +2766,7 @@
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
     $("lv-today").addEventListener("click", () => setLoanView(null));
-    $("lv-years").addEventListener("change", (e) => setLoanView(Number(e.target.value) || null));
+    $("lv-years").addEventListener("change", (e) => setLoanView(e.target.value === "best" ? "best" : Number(e.target.value) || null));
     $("l-edit").addEventListener("click", () => { $("f-loan").dataset.editing = "1"; setLoanLocked(false); showMessage("l-msg", ""); });
     $("l-cancel").addEventListener("click", () => { delete $("f-loan").dataset.dirty; delete $("f-loan").dataset.editing; renderLoanForm(); render(); });
     $("l-add-bill").addEventListener("click", () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
