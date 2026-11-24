@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.10">
-  <script src="app.js?v=3.10" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.11">
+  <script src="app.js?v=3.11" defer></script>
 </head>
 <body>
 
@@ -232,6 +232,7 @@
           <form id="f-loan" novalidate>
             <h3 class="full">הזיקר</h3>
             <label>תאריך הקנייה<input type="date" id="l-buy"></label>
+            <label>תקופת ההשוואה בחודשים, בסופה מוכרים את שני הרכבים<input type="number" inputmode="numeric" step="1" id="l-horizon"></label>
             <label>מחיר הזיקר (₪)<input type="number" inputmode="decimal" step="any" id="l-car"></label>
             <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-car-dep"></label>
             <label>טיפולים בשנה, הערכה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-maint"></label>

@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.10";
+  const APP_VERSION = "3.11";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -851,10 +851,10 @@
     buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null, carFee: null, carUpfront: null,
     altPrice: 80000, altKmL: null, altDepPct: null, altIns: null, altMaint: null, altFee: null, altUpfront: null,
     returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
-    kmMonth: null, schedules: [], expenses: [],
+    kmMonth: null, horizonMonths: 36, schedules: [], expenses: [],
   };
   const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice", "altKmL", "altDepPct", "altIns", "altMaint",
-    "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth"];
+    "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth", "horizonMonths"];
 
   /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
   function normalizeLoan(raw) {
@@ -969,7 +969,8 @@
     const ownCash = loan.carPrice - (loan.standAmount || 0) - principal0;
     const loanEnd = schedules.reduce((end, s) => { const e = addMonths(s.from, s.months); return e > end ? e : end; }, loan.buyDate);
     const todayIndex = Math.max(0, monthsBetween(loan.buyDate, today));
-    const horizon = Math.min(LOAN_MAX_MONTHS, Math.max(todayIndex, monthsBetween(loan.buyDate, loanEnd), 12));
+    // The comparison runs for the months chosen (both cars sold at the end), or else to the end of the loan.
+    const horizon = loan.horizonMonths > 0 ? Math.min(LOAN_MAX_MONTHS, Math.round(loan.horizonMonths)) : Math.min(LOAN_MAX_MONTHS, Math.max(todayIndex, monthsBetween(loan.buyDate, loanEnd), 12));
     const growth = 1 + (loan.returnPct || 0) / 100 / 12;
     const depZ = 1 - (loan.carDepPct || 0) / 100, depA = 1 - (loan.altDepPct || 0) / 100;
     const standDrop = 1 - (loan.standDropPct || 0) / 100;
@@ -1710,6 +1711,7 @@
       ["טיפול יישור קו בקנייה", money(loan.altUpfront)],
       ["תשואה שנתית בגמל", pct(loan.returnPct)],
       ["שחיקת החוב העומד בשנה", pct(loan.standDropPct)],
+      ["תקופת ההשוואה", loan.horizonMonths > 0 ? formatNumber(loan.horizonMonths) + " חודשים" : "עד סוף ההלוואה"],
       ["חודשים עד שאין החזר עומד", loan.standFreeMonths > 0 ? formatNumber(loan.standFreeMonths) : "אין"],
     ]);
     $("loan-derived").innerHTML = factsHtml([
@@ -1735,7 +1737,7 @@
   const LOAN_FIELDS = {
     "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee", "l-car-up": "carUpfront", "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
     "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint",
-    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth",
+    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth", "l-horizon": "horizonMonths",
   };
 
   /** Fills the form from the saved data, unless the user is editing it. */
