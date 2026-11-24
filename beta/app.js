@@ -62,7 +62,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.14";
+  const APP_VERSION = "3.15";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -1656,15 +1656,29 @@
     const ready = !model.missing.length;
     $("loan-missing").hidden = ready;
     $("loan-missing").textContent = ready ? "" : "כדי לחשב חסרים: " + model.missing.join(", ") + ". אפשר להזין אותם למטה, בנתוני הבסיס.";
-    for (const id of ["loan-summary", "loan-compare", "sale-panel", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
+    for (const id of ["loan-view", "loan-tiles", "loan-summary", "loan-compare", "sale-panel", "loan-chart-panel", "loan-detail-panel"]) $(id).hidden = !ready;
     renderLoanForm();
     if (!ready) return;
 
-    const now = model.now, end = model.end;
+    const end = model.end;
+    // The view chosen at the top: as of today (selling today), or a sale after a number of years.
+    const view = loanView();
+    const viewModel = view ? buildLoanModel({ ...loan, horizonMonths: view }, months, todayIso()) : model;
+    const now = view ? viewModel.end : model.now;
+    const viewLabel = view ? "במכירה אחרי " + formatYears(view) : "עד היום";
+    $("lv-today").setAttribute("aria-pressed", String(!view));
+    $("lv-years").value = view ? String(view) : "";
+    $("lv-years").classList.toggle("on", !!view);
+    $("tile-z").textContent = money(now.i ? now.costZ / now.i : null);
+    $("tile-a").textContent = money(now.i ? now.costA / now.i : null);
+    $("tile-z-sub").textContent = "לחודש, " + viewLabel + " · מהכיס " + money(now.i ? now.outZ / now.i : null);
+    $("tile-a-sub").textContent = "לחודש, " + viewLabel + " · מהכיס " + money(now.i ? now.outA / now.i : null);
+    $("tile-z").parentElement.classList.toggle("cheaper", now.costZ <= now.costA);
+    $("tile-a").parentElement.classList.toggle("cheaper", now.costA < now.costZ);
     const adv = now.advantage;
     $("loan-adv").textContent = money(Math.abs(adv));
     $("loan-adv").className = "loan-big " + (adv >= 0 ? "good" : "bad");
-    $("loan-adv-label").textContent = adv >= 0 ? "לטובת הזיקר עד היום" : "לטובת רכב היד השנייה עד היום";
+    $("loan-adv-label").textContent = (adv >= 0 ? "לטובת הזיקר " : "לטובת רכב היד השנייה ") + viewLabel;
     const pill = $("loan-pill");
     pill.textContent = adv >= 0 ? "כדאי כרגע" : "עוד לא כדאי";
     pill.className = "pill " + (adv >= 0 ? "good" : "warn");
@@ -1734,11 +1748,11 @@
     $("loan-derived").innerHTML = factsHtml([
       ["החזר חודשי בלוח הראשון", money(model.firstPayment)],
       ["סוף ההלוואה", formatDate(model.loanEnd)],
-      ["יתרת הלוואה היום", money(now.balance)],
-      ["חוב עומד היום", money(now.standOwed)],
+      ["יתרת הלוואה היום", money(model.now.balance)],
+      ["חוב עומד היום", money(model.now.standOwed)],
       ["טיפולים ששולמו בזיקר", model.useBills ? money(model.billsPaid) + " ב‑" + loan.expenses.length + " חשבונות" : "אין עדיין, לפי ההערכה"],
-      ["שווי הזיקר היום", money(now.valueZ)],
-      ["שווי החלופי היום", money(now.valueA)],
+      ["שווי הזיקר היום", money(model.now.valueZ)],
+      ["שווי החלופי היום", money(model.now.valueA)],
       ["ק״מ בחודש לתחזית", formatNumber(model.kmEstimate, 0) + (loan.kmMonth > 0 ? " ק״מ, לפי ההגדרה" : " ק״מ, ממוצע המדידות")],
       ["עלות חשמל לק״מ", model.costPerKm ? formatNumber(model.costPerKm * 100, 1) + " אג׳" : "אין עדיין מדידות"],
       ["חודשים לפי הערכה עד היום", formatNumber(model.estimatedMonths) + " מתוך " + formatNumber(model.todayIndex)],
@@ -1771,6 +1785,23 @@
       ? "הכי משתלם למכור אחרי " + (best.h / 12) + " שנים: " + money(best.adv) + " לטובת הזיקר."
       : "בכל מועד הזיקר יקר יותר. הפער הכי קטן במכירה אחרי " + (best.h / 12) + " שנים: " + money(-best.adv) + ".") +
       " הפרש חיובי הוא לטובת הזיקר. אחרי סוף הלוח האחרון ההלוואה ממוחזרת באותה ריבית, והק״מ העתידיים לפי הממוצע שלך.";
+  }
+
+  /** "3 שנים", "3.5 שנים", "שנתיים" for a number of months. */
+  function formatYears(monthCount) {
+    const y = monthCount / 12;
+    return y === 1 ? "שנה" : y === 2 ? "שנתיים" : formatNumber(y, y % 1 ? 1 : 0) + " שנים";
+  }
+
+  /** The view chosen at the top of the loan tab: null for today, or the sale month. Kept per device. */
+  function loanView() {
+    let v = null;
+    try { v = Number(localStorage.getItem("zk-loan-view")) || null; } catch (e) { /* storage unavailable */ }
+    return v;
+  }
+  function setLoanView(v) {
+    try { v ? localStorage.setItem("zk-loan-view", String(v)) : localStorage.removeItem("zk-loan-view"); } catch (e) { /* storage unavailable */ }
+    render();
   }
 
   /* ---------- Base data form ---------- */
@@ -2717,6 +2748,8 @@
     $("f-car").addEventListener("submit", onSubmitCarSettings);
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
+    $("lv-today").addEventListener("click", () => setLoanView(null));
+    $("lv-years").addEventListener("change", (e) => setLoanView(Number(e.target.value) || null));
     $("l-edit").addEventListener("click", () => { $("f-loan").dataset.editing = "1"; setLoanLocked(false); showMessage("l-msg", ""); });
     $("l-cancel").addEventListener("click", () => { delete $("f-loan").dataset.dirty; delete $("f-loan").dataset.editing; renderLoanForm(); render(); });
     $("l-add-bill").addEventListener("click", () => { addBillRow({ date: todayIso(), amount: "", note: "" }); $("f-loan").dataset.dirty = "1"; });
