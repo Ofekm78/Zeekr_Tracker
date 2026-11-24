@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.11">
-  <script src="app.js?v=3.11" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.12">
+  <script src="app.js?v=3.12" defer></script>
 </head>
 <body>
 
@@ -226,8 +226,9 @@
     </div>
 
     <div class="panel">
-      <details class="guide" id="loan-edit">
-        <summary>עריכת נתוני הבסיס</summary>
+      <div id="loan-edit">
+        <div class="row"><h2>נתוני הבסיס</h2><button class="btn ghost small" type="button" id="l-edit">ערוך</button></div>
+        <p class="sub">הנתונים נעולים. לחיצה על ערוך פותחת אותם לשינוי, ושמירה נועלת אותם שוב.</p>
         <div class="body">
           <form id="f-loan" novalidate>
             <h3 class="full">הזיקר</h3>
@@ -262,11 +263,14 @@
             <label>טיפול יישור קו בקנייה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-up"></label>
             <label>תשואה שנתית בגמל (%)<input type="number" inputmode="decimal" step="any" id="l-return"></label>
 
-            <button class="btn full" type="submit">שמור</button>
+            <div class="row start full" id="l-actions" hidden>
+              <button class="btn" type="submit">שמור</button>
+              <button class="btn ghost" type="button" id="l-cancel">בטל</button>
+            </div>
             <p class="msg full" id="l-msg" role="status"></p>
           </form>
         </div>
-      </details>
+      </div>
     </div>
   </section>
 
