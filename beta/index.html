@@ -30,8 +30,8 @@
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.9">
-  <script src="app.js?v=3.9" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3.10">
+  <script src="app.js?v=3.10" defer></script>
 </head>
 <body>
 
@@ -214,7 +214,7 @@
       <ul class="sub loan-how">
         <li>כל שקל שיצא מהכיס היה יכול להישאר בגמל, ולכן כל הוצאה גדלה בתשואה של הגמל עד החודש המוצג. ההפרש הוא התשואה שאבדה.</li>
         <li>עלות הזיקר היא ההוצאות עם התשואה שאבדה, ועוד יתרת ההלוואה והחוב העומד, פחות שווי הרכב.</li>
-        <li>עלות החלופה היא 80 אלף ששולמו ביום הקנייה, דלק, ביטוח וטיפולים עם התשואה שאבדה, פחות שווי הרכב.</li>
+        <li>עלות החלופה היא מחיר הרכב וטיפול יישור הקו ששולמו ביום הקנייה, ואחר כך דלק, טיפולים ואגרה, עם התשואה שאבדה, פחות שווי הרכב. ביטוח לא נכלל, לא בזיקר ולא בחלופה.</li>
         <li>החשמל נלקח מהמדידות באפליקציה. הדלק של החלופה הוא אותם ק״מ במחיר הבנזין הרשמי של כל חודש.</li>
         <li>חודש שאין לו מדידה מלאה מחושב לפי הממוצע, והוא מסומן בכוכבית בטבלה.</li>
         <li>ההחזר החודשי בכל לוח מחושב בשיטת שפיצר, או לפי החזר קבוע בתקופת גרייס. שינוי בפריים נכנס כלוח חדש מתאריך השינוי.</li>
@@ -234,8 +234,12 @@
             <label>תאריך הקנייה<input type="date" id="l-buy"></label>
             <label>מחיר הזיקר (₪)<input type="number" inputmode="decimal" step="any" id="l-car"></label>
             <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-car-dep"></label>
-            <label>ביטוח בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-ins"></label>
-            <label>טיפולים בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-maint"></label>
+            <label>טיפולים בשנה, הערכה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-maint"></label>
+            <label>אגרת רישוי בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-car-fee"></label>
+            <label>מטען ביתי, חד־פעמי (₪)<input type="number" inputmode="decimal" step="any" id="l-car-up"></label>
+            <p class="sub full">טיפולים ששילמת בפועל. כשיש לפחות חשבון אחד, עד היום נספרים החשבונות, וההערכה השנתית משמשת רק לתחזית.</p>
+            <div class="full" id="l-bills"></div>
+            <button class="btn ghost small full" type="button" id="l-add-bill">הוסף חשבון טיפול</button>
             <label>ק״מ בחודש לתחזית, ריק לממוצע<input type="number" inputmode="decimal" step="any" id="l-km"></label>
 
             <h3 class="full">הלוואה עומדת, ביטוח לאומי</h3>
@@ -252,8 +256,9 @@
             <label>מחיר הרכב (₪)<input type="number" inputmode="decimal" step="any" id="l-alt"></label>
             <label>ק״מ לליטר<input type="number" inputmode="decimal" step="any" id="l-alt-kml"></label>
             <label>ירידת ערך בשנה (%)<input type="number" inputmode="decimal" step="any" id="l-alt-dep"></label>
-            <label>ביטוח בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-ins"></label>
             <label>טיפולים בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-maint"></label>
+            <label>אגרת רישוי בשנה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-fee"></label>
+            <label>טיפול יישור קו בקנייה (₪)<input type="number" inputmode="decimal" step="any" id="l-alt-up"></label>
             <label>תשואה שנתית בגמל (%)<input type="number" inputmode="decimal" step="any" id="l-return"></label>
 
             <button class="btn full" type="submit">שמור</button>
