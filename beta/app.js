@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.18";
+  const APP_VERSION = "3.19";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -240,6 +240,21 @@
     if (value == null || !isFinite(value)) return "–";
     return value.toLocaleString("he-IL", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
+
+  /** A table header row from column titles (plain text or ready HTML). */
+  const headRow = (titles) => "<tr>" + titles.map((t) => `<th>${t}</th>`).join("") + "</tr>";
+
+  /**
+   * A table body row from ready HTML cells. A cell given as {html, cls} gets
+   * that class; `rowClass`, when given, goes on the row.
+   */
+  function bodyRow(cells, rowClass) {
+    const td = (c) => (c && typeof c === "object" ? `<td class="${c.cls}">${c.html}</td>` : `<td>${c}</td>`);
+    return `<tr${rowClass ? ` class="${rowClass}"` : ""}>` + cells.map(td).join("") + "</tr>";
+  }
+
+  /** A cell coloured by sign: green when zero or more, red when negative. */
+  const signedCell = (value) => ({ html: formatNumber(value), cls: value >= 0 ? "pos" : "neg" });
 
   const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
@@ -898,7 +913,10 @@
       const faded = it.faded ? ' opacity="0.45"' : "";
       svg += `<rect x="${x}" y="${baseY - hHome}" width="${barW}" height="${hHome}" rx="3" fill="var(--accent)"${faded}/>`;
       if (hPub > 0) svg += `<rect x="${x}" y="${baseY - hHome - hPub}" width="${barW}" height="${hPub}" rx="3" fill="var(--public)"${faded}/>`;
-      if (step > 34) svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--fg)">${Math.round(it.home + it.pub)}</text>`;
+      if (step > 34) {
+        svg += `<text x="${x + barW / 2}" y="${baseY - hHome - hPub - 5}" text-anchor="middle" font-size="11" font-weight="500" ` +
+          `fill="var(--fg)">${Math.round(it.home + it.pub)}</text>`;
+      }
       svg += `<text x="${x + barW / 2}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${it.label}</text>`;
     });
     el.innerHTML = svg + "</svg>";
@@ -932,7 +950,10 @@
       const v = low + ((high - low) * g) / 3;
       svg += gridLine(left, width - 8, yAt(v), formatNumber(v, 0));
     }
-    if (average != null) svg += `<line x1="${left}" x2="${width - 8}" y1="${yAt(average)}" y2="${yAt(average)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    if (average != null) {
+      svg += `<line x1="${left}" x2="${width - 8}" y1="${yAt(average)}" y2="${yAt(average)}" ` +
+        `stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    }
     if (points.length > 1) {
       const path = points.map((p, i) => (i ? "L" : "M") + xAt(i) + " " + yAt(p.value)).join(" ");
       const floor = yAt(Math.max(low, 0));
@@ -945,7 +966,10 @@
       const isLast = i === points.length - 1;
       const labelled = (points.length - 1 - i) % every === 0;
       svg += `<circle cx="${xAt(i)}" cy="${yAt(p.value)}" r="${isLast ? 5.5 : 4}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
-      if (labelled) svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" font-size="11" font-weight="${isLast ? 700 : 500}" fill="var(--fg)">${formatNumber(p.value, decimals)}</text>`;
+      if (labelled) {
+        svg += `<text x="${xAt(i)}" y="${yAt(p.value) - 10}" text-anchor="middle" font-size="11" font-weight="${isLast ? 700 : 500}" ` +
+          `fill="var(--fg)">${formatNumber(p.value, decimals)}</text>`;
+      }
       if (labelled) svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
     });
     el.innerHTML = svg + "</svg>";
@@ -977,7 +1001,8 @@
     for (let g = 0; g <= 4; g++) {
       const y = top + (plotH * g) / 4;
       svg += `<line x1="${left}" x2="${width - right}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
-      svg += `<text x="${left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--accent)">${formatNumber(vHigh - ((vHigh - vLow) * g) / 4, 0)}</text>`;
+      const value = vHigh - ((vHigh - vLow) * g) / 4;
+      svg += `<text x="${left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--accent)">${formatNumber(value, 0)}</text>`;
       svg += `<text x="${width - right + 6}" y="${y + 4}" font-size="11" fill="${TEMP}">${formatNumber(tHigh - ((tHigh - tLow) * g) / 4, 0)}°</text>`;
     }
     // Temperature line, broken where a month has no weather data.
@@ -994,14 +1019,17 @@
     points.forEach((p, i) => {
       svg += `<circle cx="${xAt(i)}" cy="${yV(p.value)}" r="3.5" fill="var(--accent)"/>`;
       if (p.temp != null) svg += `<circle cx="${xAt(i)}" cy="${yT(p.temp)}" r="3" fill="${TEMP}"/>`;
-      if ((points.length - 1 - i) % every === 0) svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+      if ((points.length - 1 - i) % every === 0) {
+        svg += `<text x="${xAt(i)}" y="${CHART_HEIGHT - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.label}</text>`;
+      }
     });
     // One tall, finger-wide target per month.
     const slot = points.length > 1 ? plotW / (points.length - 1) : plotW;
     points.forEach((p, i) => {
       const tempText = p.temp != null ? formatNumber(p.temp, 1) + " מעלות" : "אין נתון טמפרטורה";
-      svg += `<rect class="slot" data-i="${i}" x="${xAt(i) - slot / 2}" y="${top}" width="${slot}" height="${plotH}" fill="transparent" tabindex="0" role="button" ` +
-        `aria-label="${p.name}: ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ, ${tempText}"><title>${p.name}: ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ, ${tempText}</title></rect>`;
+      const label = `${p.name}: ${formatNumber(p.value, 1)} קוט״ש ל‑100 ק״מ, ${tempText}`;
+      svg += `<rect class="slot" data-i="${i}" x="${xAt(i) - slot / 2}" y="${top}" width="${slot}" height="${plotH}" ` +
+        `fill="transparent" tabindex="0" role="button" aria-label="${label}"><title>${label}</title></rect>`;
     });
     el.innerHTML = svg + '<g class="dot-tip" pointer-events="none"></g></svg>';
 
@@ -1124,8 +1152,11 @@
         ["תחזית חיסכון לשנה", formatNumber(yearKm * fuelPerKm - yearKm * costPerKm) + " ₪"],
       ];
       facts.innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
-      $("facts-note").textContent = (driven.corrected ? "הצריכה מתוקנת לפי אחוז הסוללה ב‑" + driven.corrected + " מתוך " + spans.length + " תקופות. " : "") + "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) +
-        " ליטר ל‑100 ק״מ. " + (fuelPrices.length
+      const corrected = driven.corrected
+        ? "הצריכה מתוקנת לפי אחוז הסוללה ב‑" + driven.corrected + " מתוך " + spans.length + " תקופות. "
+        : "";
+      $("facts-note").textContent = corrected +
+        "ההשוואה מניחה רכב בנזין שצורך " + formatNumber(state.settings.fuelL100, 1) + " ליטר ל‑100 ק״מ. " + (fuelPrices.length
           ? "מחיר הבנזין בכל חודש הוא המחיר הרשמי של משרד האנרגיה, וכרגע " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר."
           : "מחיר הבנזין הוא " + formatNumber(currentFuelPrice, 2) + " ₪ לליטר.") +
         " אפשר לשנות בהגדרות. הצריכה נמדדת במונה העמדה ולכן כוללת את הפסדי הטעינה.";
@@ -1200,7 +1231,12 @@
     const last = state.readings[state.readings.length - 1].date;
     ensureWeather(first, () => { if (!$("v-overview").hidden) renderTemperature(lastMonths); });
     const withEff = months.filter((m) => m.efficiency != null);
-    const points = withEff.map((m, i) => ({ label: monthLabel(m.key, i === 0), name: monthName(m.key), temp: monthTemperature(m.key, first, last), value: m.efficiency }));
+    const points = withEff.map((m, i) => ({
+      label: monthLabel(m.key, i === 0),
+      name: monthName(m.key),
+      temp: monthTemperature(m.key, first, last),
+      value: m.efficiency,
+    }));
     if (points.some((p) => p.temp != null)) {
       drawTempTimeChart(el, points);
       note.textContent = "נגיעה בחודש, או ריחוף במחשב, מראה את הצריכה ואת הטמפרטורה שלו. הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
@@ -1230,7 +1266,7 @@
       `<td>${formatNumber(p.cost)}</td><td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td>` +
       `<td>${total ? formatNumber((p.cost / total) * 100, 0) + "%" : "–"}</td></tr>`).join("");
     const homeRow = homePrice != null
-      ? `<tr class="muted-row"><td>טעינה ביתית, להשוואה</td><td>–</td><td>${formatNumber(homeKwh, 1)}</td><td>${formatNumber(model.spent.home)}</td><td>${formatNumber(homePrice, 2)}</td><td>–</td></tr>`
+      ? bodyRow(["טעינה ביתית, להשוואה", "–", formatNumber(homeKwh, 1), formatNumber(model.spent.home), formatNumber(homePrice, 2), "–"], "muted-row")
       : "";
     $("t-providers").innerHTML = header + rows + homeRow;
     $("prov-summary").textContent = "ניתוח לפי חברת טעינה (" + providers.length + (providers.length === 1 ? " חברה)" : " חברות)");
@@ -1305,9 +1341,15 @@
 
     if (state.readings.length) {
       const rows = state.readings.map((r, i) =>
-        `<tr><td>${formatDate(r.date)}</td><td>${formatNumber(r.meter, 2)}</td><td>${r.odo != null ? formatNumber(r.odo) : "חסר"}</td>` +
-        `<td>${formatNumber(priceForReading(state.readings, i), 4)}</td><td>${r.soc != null ? formatNumber(r.soc) + "%" : "–"}</td><td>${deleteButton("readings/" + r.date)}</td></tr>`);
-      $("t-readings").innerHTML = "<tr><th>תאריך</th><th>מונה קוט״ש</th><th>קילומטראז׳</th><th>₪ לקוט״ש</th><th>סוללה</th><th></th></tr>" + rows.reverse().join("");
+        bodyRow([
+          formatDate(r.date),
+          formatNumber(r.meter, 2),
+          r.odo != null ? formatNumber(r.odo) : "חסר",
+          formatNumber(priceForReading(state.readings, i), 4),
+          r.soc != null ? formatNumber(r.soc) + "%" : "–",
+          deleteButton("readings/" + r.date),
+        ]));
+      $("t-readings").innerHTML = headRow(["תאריך", "מונה קוט״ש", "קילומטראז׳", "₪ לקוט״ש", "סוללה", ""]) + rows.reverse().join("");
     } else {
       $("t-readings").innerHTML = '<tr><td class="empty">עוד אין מדידות.</td></tr>';
     }
@@ -1321,9 +1363,17 @@
         return !last || charge.date > last.date ? "ממתינה למדידה הבאה" : "לפני תחילת המעקב";
       };
       const rows = state.publicCharges.slice().reverse().map((p) =>
-        `<tr><td>${formatDate(p.date)}</td><td>${p.provider ? providerLabel(p.provider) : "–"}</td><td>${formatNumber(p.kwh, 1)}</td><td>${formatNumber(p.cost, 2)}</td>` +
-        `<td>${formatNumber(p.kwh ? p.cost / p.kwh : null, 2)}</td><td>${countedIn(p)}</td><td>${escapeHtml(p.note)}</td><td>${deleteButton("public/" + p.id)}</td></tr>`);
-      $("t-public").innerHTML = "<tr><th>תאריך</th><th>חברה</th><th>קוט״ש</th><th>₪</th><th>₪ לקוט״ש</th><th>נספרת ב</th><th>הערה</th><th></th></tr>" + rows.join("");
+        bodyRow([
+          formatDate(p.date),
+          p.provider ? providerLabel(p.provider) : "–",
+          formatNumber(p.kwh, 1),
+          formatNumber(p.cost, 2),
+          formatNumber(p.kwh ? p.cost / p.kwh : null, 2),
+          countedIn(p),
+          escapeHtml(p.note),
+          deleteButton("public/" + p.id),
+        ]));
+      $("t-public").innerHTML = headRow(["תאריך", "חברה", "קוט״ש", "₪", "₪ לקוט״ש", "נספרת ב", "הערה", ""]) + rows.join("");
     } else {
       $("t-public").innerHTML = '<tr><td class="empty">עוד לא נרשמו טעינות ציבוריות. מוסיפים בלשונית הזנה.</td></tr>';
     }
@@ -1512,9 +1562,13 @@
     if (previous && meter < previous.meter) return showMessage("r-msg", "המונה נמוך מהמדידה הקודמת (" + formatNumber(previous.meter, 2) + "). בדוק את המספר.");
     if (next && meter > next.meter) return showMessage("r-msg", "המונה גבוה מהמדידה שאחריה (" + formatNumber(next.meter, 2) + ").");
     const previousWithOdo = [...state.readings].reverse().find((r) => r.date < date && r.odo != null);
-    if (odo != null && previousWithOdo && odo < previousWithOdo.odo) return showMessage("r-msg", "הקילומטראז׳ נמוך מהמדידה הקודמת (" + formatNumber(previousWithOdo.odo) + ").");
+    if (odo != null && previousWithOdo && odo < previousWithOdo.odo) {
+      return showMessage("r-msg", "הקילומטראז׳ נמוך מהמדידה הקודמת (" + formatNumber(previousWithOdo.odo) + ").");
+    }
     const nextWithOdo = state.readings.find((r) => r.date > date && r.odo != null);
-    if (odo != null && nextWithOdo && odo > nextWithOdo.odo) return showMessage("r-msg", "הקילומטראז׳ גבוה מהמדידה שאחריה (" + formatNumber(nextWithOdo.odo) + ").");
+    if (odo != null && nextWithOdo && odo > nextWithOdo.odo) {
+      return showMessage("r-msg", "הקילומטראז׳ גבוה מהמדידה שאחריה (" + formatNumber(nextWithOdo.odo) + ").");
+    }
 
     try {
       // A reading is identified by its date, so saving the same date again corrects it.
@@ -1572,7 +1626,9 @@
     event.preventDefault();
     const batteryKwh = inputNumber("s-battery");
     if (!state.connected) return showMessage("c-msg", NOT_CONNECTED);
-    if (!(batteryKwh >= MIN_BATTERY_KWH && batteryKwh <= MAX_BATTERY_KWH)) return showMessage("c-msg", "קיבולת הסוללה צריכה להיות בין " + MIN_BATTERY_KWH + " ל‑" + MAX_BATTERY_KWH + " קוט״ש.");
+    if (!(batteryKwh >= MIN_BATTERY_KWH && batteryKwh <= MAX_BATTERY_KWH)) {
+      return showMessage("c-msg", "קיבולת הסוללה צריכה להיות בין " + MIN_BATTERY_KWH + " ל‑" + MAX_BATTERY_KWH + " קוט״ש.");
+    }
     try {
       await mutate((draft) => { draft.settings = { ...draft.settings, batteryKwh }; });
       showMessage("c-msg", "נשמר.", true);
@@ -1690,12 +1746,12 @@
   /** Upper bound for the comparison horizon, in months. */
   const LOAN_MAX_MONTHS = 180;
   const DEFAULT_LOAN = {
-    buyDate: "", carPrice: null, carDepPct: null, carIns: null, carMaint: null, carFee: null, carUpfront: null,
-    altPrice: 80000, altKmL: null, altDepPct: null, altIns: null, altMaint: null, altFee: null, altUpfront: null,
+    buyDate: "", carPrice: null, carDepPct: null, carMaint: null, carFee: null, carUpfront: null,
+    altPrice: 80000, altKmL: null, altDepPct: null, altMaint: null, altFee: null, altUpfront: null,
     returnPct: null, standAmount: null, standDropPct: null, standFreeMonths: 42,
     kmMonth: null, horizonMonths: 36, schedules: [], expenses: [],
   };
-  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carIns", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice", "altKmL", "altDepPct", "altIns", "altMaint",
+  const LOAN_NUMBERS = ["carPrice", "carDepPct", "carMaint", "carFee", "carUpfront", "altFee", "altUpfront", "altPrice", "altKmL", "altDepPct", "altMaint",
     "returnPct", "standAmount", "standDropPct", "standFreeMonths", "kmMonth", "horizonMonths"];
 
   /** Cleans the `loan` object of the data file; unknown or invalid values become null. */
@@ -1812,7 +1868,9 @@
     const loanEnd = schedules.reduce((end, s) => { const e = addMonths(s.from, s.months); return e > end ? e : end; }, loan.buyDate);
     const todayIndex = Math.max(0, monthsBetween(loan.buyDate, today));
     // The comparison runs for the months chosen (both cars sold at the end), or else to the end of the loan.
-    const horizon = loan.horizonMonths > 0 ? Math.min(LOAN_MAX_MONTHS, Math.round(loan.horizonMonths)) : Math.min(LOAN_MAX_MONTHS, Math.max(todayIndex, monthsBetween(loan.buyDate, loanEnd), 12));
+    const horizon = Math.min(LOAN_MAX_MONTHS, loan.horizonMonths > 0
+      ? Math.round(loan.horizonMonths)
+      : Math.max(todayIndex, monthsBetween(loan.buyDate, loanEnd), 12));
     const growth = 1 + (loan.returnPct || 0) / 100 / 12;
     const depZ = 1 - (loan.carDepPct || 0) / 100, depA = 1 - (loan.altDepPct || 0) / 100;
     const standDrop = 1 - (loan.standDropPct || 0) / 100;
@@ -1837,8 +1895,8 @@
 
     // One-off costs on the day of purchase: a home charger for the Zeekr, a catch-up service for the used car.
     const upZ = loan.carUpfront || 0, upA = loan.altUpfront || 0;
-    const z = { fv: ownCash + upZ, out: ownCash + upZ, payments: 0, interest: 0, energy: 0, ins: 0, maint: 0, fee: 0 };
-    const a = { fv: loan.altPrice + upA, out: loan.altPrice + upA, fuel: 0, ins: 0, maint: 0, fee: 0 };
+    const z = { fv: ownCash + upZ, out: ownCash + upZ, payments: 0, interest: 0, energy: 0, maint: 0, fee: 0 };
+    const a = { fv: loan.altPrice + upA, out: loan.altPrice + upA, fuel: 0, maint: 0, fee: 0 };
     // Zeekr maintenance: the bills entered, month by month, up to today; the yearly estimate after today.
     const paidByMonth = new Map();
     for (const e of loan.expenses) paidByMonth.set(e.date.slice(0, 7), (paidByMonth.get(e.date.slice(0, 7)) || 0) + e.amount);
@@ -1857,14 +1915,14 @@
         const monthKm = real ? m.km : kmEstimate || 0;
         const energy = real ? m.costHome + m.costPublic : monthKm * (costPerKm || 0);
         const fuel = (monthKm / altKmPerLitre(loan)) * monthFuelPrice(key);
-        const insZ = (loan.carIns || 0) / 12, feeZ = (loan.carFee || 0) / 12;
+        const feeZ = (loan.carFee || 0) / 12;
         const maintZ = useBills && i <= todayIndex ? (paidByMonth.get(key) || 0) : (loan.carMaint || 0) / 12;
-        const insA = (loan.altIns || 0) / 12, maintA = (loan.altMaint || 0) / 12, feeA = (loan.altFee || 0) / 12;
-        const outZ = loanNow.payment + energy + insZ + maintZ + feeZ;
-        const outA = fuel + insA + maintA + feeA;
+        const maintA = (loan.altMaint || 0) / 12, feeA = (loan.altFee || 0) / 12;
+        const outZ = loanNow.payment + energy + maintZ + feeZ;
+        const outA = fuel + maintA + feeA;
         z.fv += outZ; z.out += outZ; z.payments += loanNow.payment; z.interest += loanNow.interest;
-        z.energy += energy; z.ins += insZ; z.maint += maintZ; z.fee += feeZ;
-        a.fv += outA; a.out += outA; a.fuel += fuel; a.ins += insA; a.maint += maintA; a.fee += feeA;
+        z.energy += energy; z.maint += maintZ; z.fee += feeZ;
+        a.fv += outA; a.out += outA; a.fuel += fuel; a.maint += maintA; a.fee += feeA;
         if (i <= todayIndex) { km += monthKm; if (!real) estimated += 1; }
         row = { ...row, km: monthKm, energy, fuel, payment: loanNow.payment, interest: loanNow.interest, estimate: !real };
       }
@@ -1873,18 +1931,21 @@
       const standOwed = loan.standFreeMonths > 0 && i >= loan.standFreeMonths ? 0 : (loan.standAmount || 0) * Math.pow(standDrop, i / 12);
       const costZ = z.fv + loanNow.balance + standOwed - valueZ;
       const costA = a.fv - valueA;
-      row = { ...row, balance: loanNow.balance, standOwed, valueZ, valueA, costZ, costA, advantage: costA - costZ, rate: loanNow.schedule ? loanNow.schedule.ratePct : null };
+      row = {
+        ...row, balance: loanNow.balance, standOwed, valueZ, valueA, costZ, costA,
+        advantage: costA - costZ, rate: loanNow.schedule ? loanNow.schedule.ratePct : null,
+      };
       // Components of the totals at this month (they add up to costZ and costA exactly).
       row.partsZ = {
         depreciation: loan.carPrice - valueZ,
         interest: z.payments + loanNow.balance - principal0,   // interest and any fee added on a new schedule
-        energy: z.energy, ins: z.ins, maint: z.maint, fee: z.fee, upfront: upZ,
+        energy: z.energy, maint: z.maint, fee: z.fee, upfront: upZ,
         lostReturn: z.fv - z.out,
         standing: standOwed - (loan.standAmount || 0),         // negative: the part of the standing loan that is no longer owed
       };
       row.outZ = z.out - ownCash - upZ;   // running cash out after the purchase day
       row.outA = a.out - loan.altPrice - upA;
-      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, ins: a.ins, maint: a.maint, fee: a.fee, upfront: upA, lostReturn: a.fv - a.out };
+      row.partsA = { depreciation: loan.altPrice - valueA, fuel: a.fuel, maint: a.maint, fee: a.fee, upfront: upA, lostReturn: a.fv - a.out };
       rows.push(row);
     }
 
@@ -1894,7 +1955,8 @@
       if (rows[i - 1].advantage < 0) { breakEven = rows[i]; break; }
     }
     return {
-      missing, rows, todayIndex, useBills, billsPaid: loan.expenses.reduce((s, e) => s + e.amount, 0), horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
+      missing, rows, todayIndex, horizon, breakEven, ownCash, principal0, loanEnd, costPerKm, kmAvg, kmEstimate,
+      useBills, billsPaid: loan.expenses.reduce((s, e) => s + e.amount, 0),
       kmSoFar: km, estimatedMonths: estimated, firstPayment: schedulePayment(schedules[0]),
       now: rows[Math.min(todayIndex, rows.length - 1)], end: rows[rows.length - 1],
     };
@@ -1933,7 +1995,9 @@
       if (t < rows.length - 1) svg += `<path d="${path(t, rows.length - 1, f)}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="5 4"/>`;
     }
     svg += `<line x1="${xAt(t)}" x2="${xAt(t)}" y1="${top}" y2="${top + plotH}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>`;
-    svg += `<text x="${xAt(t)}" y="${top + 10}" text-anchor="${t > rows.length * 0.8 ? "end" : "start"}" dx="${t > rows.length * 0.8 ? -4 : 4}" font-size="11" fill="var(--muted)">היום</text>`;
+    const nearEnd = t > rows.length * 0.8;   // label on the left of the line when it is near the right edge
+    svg += `<text x="${xAt(t)}" y="${top + 10}" text-anchor="${nearEnd ? "end" : "start"}" dx="${nearEnd ? -4 : 4}" ` +
+      `font-size="11" fill="var(--muted)">היום</text>`;
     if (model.breakEven) {
       const b = model.breakEven;
       svg += `<circle cx="${xAt(b.i)}" cy="${yAt(b.costZ)}" r="5.5" fill="var(--good)" stroke="var(--surface)" stroke-width="2"/>`;
@@ -1968,10 +2032,10 @@
       const e = m.costHome + m.costPublic;
       const f = (m.km / kmL) * monthFuelPrice(m.key);
       km += m.km; elec += e; fuel += f;
-      return `<tr><td>${monthName(m.key)}${m.partial ? " *" : ""}</td><td>${formatNumber(m.km)}</td><td>${formatNumber(e)}</td><td>${formatNumber(f)}</td><td class="${f - e >= 0 ? "pos" : "neg"}">${formatNumber(f - e)}</td></tr>`;
+      return bodyRow([monthName(m.key) + (m.partial ? " *" : ""), formatNumber(m.km), formatNumber(e), formatNumber(f), signedCell(f - e)]);
     });
-    $("ef-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל ₪</th><th>דלק ₪</th><th>חיסכון ₪</th></tr>" + rows.reverse().join("") +
-      `<tr class="total"><td>סה״כ</td><td>${formatNumber(km)}</td><td>${formatNumber(elec)}</td><td>${formatNumber(fuel)}</td><td>${formatNumber(fuel - elec)}</td></tr>`;
+    $("ef-table").innerHTML = headRow(["חודש", "ק״מ", "חשמל ₪", "דלק ₪", "חיסכון ₪"]) + rows.reverse().join("") +
+      bodyRow(["סה״כ", formatNumber(km), formatNumber(elec), formatNumber(fuel), formatNumber(fuel - elec)], "total");
     $("ef-total").innerHTML = factsHtml([
       ["חשמל בפועל", money(elec)],
       ["אותם ק״מ בדלק", money(fuel)],
@@ -2018,7 +2082,8 @@
     pill.className = "pill " + (adv >= 0 ? "good" : "warn");
     $("loan-progress").style.width = Math.min(100, (model.todayIndex / Math.max(1, model.horizon)) * 100) + "%";
     $("loan-month").textContent = "חודש " + model.todayIndex + " מתוך " + model.horizon;
-    $("loan-forecast").textContent = "תחזית לסוף התקופה, " + formatDate(end.date) + ": " + money(Math.abs(end.advantage)) + (end.advantage >= 0 ? " לטובת הזיקר." : " לטובת רכב היד השנייה.") +
+    $("loan-forecast").textContent = "תחזית לסוף התקופה, " + formatDate(end.date) + ": " + money(Math.abs(end.advantage)) +
+      (end.advantage >= 0 ? " לטובת הזיקר." : " לטובת רכב היד השנייה.") +
       (model.breakEven ? " נקודת המפגש: " + monthName(model.breakEven.key) + "." : "");
 
     const pz = now.partsZ, pa = now.partsA;
@@ -2026,7 +2091,6 @@
       ["ירידת ערך", money(pz.depreciation)],
       ["ריבית ועמלות", money(pz.interest)],
       ["חשמל", money(pz.energy)],
-      ...(pz.ins ? [["ביטוח", money(pz.ins)]] : []),
       ["טיפולים" + (model.useBills ? ", בפועל" : ""), money(pz.maint)],
       ["אגרת רישוי", money(pz.fee)],
       ["מטען ביתי", money(pz.upfront)],
@@ -2039,7 +2103,6 @@
     $("loan-a").innerHTML = factsHtml([
       ["ירידת ערך", money(pa.depreciation)],
       ["דלק", money(pa.fuel)],
-      ...(pa.ins ? [["ביטוח", money(pa.ins)]] : []),
       ["טיפולים", money(pa.maint)],
       ["אגרת רישוי", money(pa.fee)],
       ["טיפול יישור קו בקנייה", money(pa.upfront)],
@@ -2049,8 +2112,10 @@
       ["יוצא מהכיס בחודש", money(now.i ? now.outA / now.i : null)],
     ]);
     $("loan-monthly").textContent = now.i
-      ? "על פני " + now.i + " חודשים: הזיקר עולה " + money(now.costZ / now.i) + " בחודש והחלופה " + money(now.costA / now.i) + ", הפרש של " + money(Math.abs(now.costZ - now.costA) / now.i) + " בחודש " + (now.costZ > now.costA ? "לטובת החלופה." : "לטובת הזיקר.") +
-        " עלות לחודש כוללת ירידת ערך ותשואה שאבדה. יוצא מהכיס הוא רק מה ששולם בפועל מדי חודש: בזיקר ריבית, חשמל, טיפולים ואגרה, ובחלופה דלק, טיפולים ואגרה."
+      ? "על פני " + now.i + " חודשים: הזיקר עולה " + money(now.costZ / now.i) + " בחודש והחלופה " + money(now.costA / now.i) +
+        ", הפרש של " + money(Math.abs(now.costZ - now.costA) / now.i) + " בחודש " + (now.costZ > now.costA ? "לטובת החלופה." : "לטובת הזיקר.") +
+        " עלות לחודש כוללת ירידת ערך ותשואה שאבדה. יוצא מהכיס הוא רק מה ששולם בפועל מדי חודש:" +
+        " בזיקר ריבית, חשמל, טיפולים ואגרה, ובחלופה דלק, טיפולים ואגרה."
       : "";
 
     drawLoanChart($("c-loan"), model);
@@ -2091,10 +2156,22 @@
       ["עלות חשמל לק״מ", model.costPerKm ? formatNumber(model.costPerKm * 100, 1) + " אג׳" : "אין עדיין מדידות"],
       ["חודשים לפי הערכה עד היום", formatNumber(model.estimatedMonths) + " מתוך " + formatNumber(model.todayIndex)],
     ]);
-    $("loan-sched").innerHTML = "<tr><th>מתאריך</th><th>יתרה</th><th>ריבית שנתית</th><th>חודשים</th><th>החזר חודשי</th><th>יתרה בסוף</th></tr>" +
-      loan.schedules.map((s) => `<tr><td>${formatDate(s.from)}</td><td>${money(s.balance)}</td><td>${pct(s.ratePct)}</td><td>${s.months}</td><td>${money(schedulePayment(s))}${s.payment > 0 ? ", קבוע" : ""}</td><td>${money(scheduleBalance(s, s.months))}</td></tr>`).join("");
-    $("loan-table").innerHTML = "<tr><th>חודש</th><th>ק״מ</th><th>חשמל</th><th>דלק בחלופי</th><th>החזר</th><th>מתוכו ריבית</th><th>יתרה</th><th>חוב עומד</th><th>שווי זיקר</th><th>שווי חלופי</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th></tr>" +
-      model.rows.map((r) => `<tr class="${r.past ? "" : "muted-row"}"><td>${monthLabel(r.key, true)}${r.estimate && r.i ? " *" : ""}</td><td>${formatNumber(r.km)}</td><td>${formatNumber(r.energy)}</td><td>${formatNumber(r.fuel)}</td><td>${formatNumber(r.payment)}</td><td>${formatNumber(r.interest)}</td><td>${formatNumber(r.balance)}</td><td>${formatNumber(r.standOwed)}</td><td>${formatNumber(r.valueZ)}</td><td>${formatNumber(r.valueA)}</td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.advantage >= 0 ? "pos" : "neg"}">${formatNumber(r.advantage)}</td></tr>`).join("");
+    $("loan-sched").innerHTML = headRow(["מתאריך", "יתרה", "ריבית שנתית", "חודשים", "החזר חודשי", "יתרה בסוף"]) +
+      loan.schedules.map((s) => bodyRow([
+        formatDate(s.from),
+        money(s.balance),
+        pct(s.ratePct),
+        s.months,
+        money(schedulePayment(s)) + (s.payment > 0 ? ", קבוע" : ""),
+        money(scheduleBalance(s, s.months)),
+      ])).join("");
+    $("loan-table").innerHTML = headRow(["חודש", "ק״מ", "חשמל", "דלק בחלופי", "החזר", "מתוכו ריבית", "יתרה", "חוב עומד",
+      "שווי זיקר", "שווי חלופי", "עלות זיקר", "עלות חלופי", "הפרש"]) +
+      model.rows.map((r) => bodyRow([
+        monthLabel(r.key, true) + (r.estimate && r.i ? " *" : ""),
+        ...[r.km, r.energy, r.fuel, r.payment, r.interest, r.balance, r.standOwed, r.valueZ, r.valueA, r.costZ, r.costA].map((v) => formatNumber(v)),
+        signedCell(r.advantage),
+      ], r.past ? "" : "muted-row")).join("");
   }
 
   /**
@@ -2103,7 +2180,8 @@
    */
   function renderSaleTiming(loan, months) {
     const base = loan.horizonMonths > 0 ? Math.round(loan.horizonMonths) : 36;
-    const options = [...new Set([base, 36, 48, 60, 72, 84, ...(loan.standFreeMonths > 0 ? [Math.round(loan.standFreeMonths)] : [])])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
+    const standFree = loan.standFreeMonths > 0 ? [Math.round(loan.standFreeMonths)] : [];
+    const options = [...new Set([base, 36, 48, 60, 72, 84, ...standFree])].filter((h) => h >= 12 && h <= 84).sort((a, b) => a - b);
     let previous = null;
     const rows = options.map((h) => {
       const m = buildLoanModel({ ...loan, horizonMonths: h }, months, todayIso());
@@ -2113,8 +2191,15 @@
       return row;
     });
     const best = rows.reduce((b, r) => (r.adv > b.adv ? r : b), rows[0]);
-    $("sale-table").innerHTML = "<tr><th>מכירה</th><th>עלות זיקר</th><th>עלות חלופי</th><th>הפרש</th><th>הפרש לחודש</th><th>שינוי</th></tr>" +
-      rows.map((r) => `<tr${r === best ? ' class="best"' : ""}><td>${r.h % 12 ? r.h + " חודשים" : r.h / 12 + " שנים"}<br><small>${formatDate(r.date)}</small></td><td>${formatNumber(r.costZ)}</td><td>${formatNumber(r.costA)}</td><td class="${r.adv >= 0 ? "pos" : "neg"}">${formatNumber(r.adv)}</td><td>${formatNumber(r.adv / r.h)}</td><td>${r.step == null ? "–" : (r.step >= 0 ? "+" : "") + formatNumber(r.step)}</td></tr>`).join("");
+    $("sale-table").innerHTML = headRow(["מכירה", "עלות זיקר", "עלות חלופי", "הפרש", "הפרש לחודש", "שינוי"]) +
+      rows.map((r) => bodyRow([
+        (r.h % 12 ? r.h + " חודשים" : r.h / 12 + " שנים") + "<br><small>" + formatDate(r.date) + "</small>",
+        formatNumber(r.costZ),
+        formatNumber(r.costA),
+        signedCell(r.adv),
+        formatNumber(r.adv / r.h),
+        r.step == null ? "–" : (r.step >= 0 ? "+" : "") + formatNumber(r.step),
+      ], r === best ? "best" : "")).join("");
     $("sale-note").textContent = (best.adv >= 0
       ? "הכי משתלם למכור אחרי " + formatYears(best.h) + ": " + money(best.adv) + " לטובת הזיקר."
       : "בכל מועד הזיקר יקר יותר. הפער הכי קטן במכירה אחרי " + formatYears(best.h) + ": " + money(-best.adv) + ".") +
@@ -2155,9 +2240,10 @@
   /* ---------- Base data form ---------- */
 
   const LOAN_FIELDS = {
-    "l-buy": "buyDate", "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee", "l-car-up": "carUpfront", "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
-    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint",
-    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths", "l-km": "kmMonth", "l-horizon": "horizonMonths",
+    "l-buy": "buyDate", "l-horizon": "horizonMonths", "l-km": "kmMonth",
+    "l-car": "carPrice", "l-car-dep": "carDepPct", "l-car-maint": "carMaint", "l-car-fee": "carFee", "l-car-up": "carUpfront",
+    "l-alt": "altPrice", "l-alt-kml": "altKmL", "l-alt-dep": "altDepPct", "l-alt-maint": "altMaint", "l-alt-fee": "altFee", "l-alt-up": "altUpfront",
+    "l-return": "returnPct", "l-stand": "standAmount", "l-stand-drop": "standDropPct", "l-stand-free": "standFreeMonths",
   };
 
   /**
@@ -2721,13 +2807,15 @@
   }
 
   /**
-   * Signs this browser out. The token is shared by the main and the trial
-   * copy, so both offline caches are removed: no readings stay on the device.
+   * Signs this browser out. The token and the other stored items are shared
+   * by the main and the trial copy, so everything either copy keeps on the
+   * device (all keys starting with "zk-") is removed.
    */
   function signOut() {
-    storage.remove(STORE.token);
-    storage.remove(CACHE_KEYS.main);
-    storage.remove(CACHE_KEYS.beta);
+    try {
+      for (const key of Object.keys(localStorage)) if (key.startsWith("zk-")) localStorage.removeItem(key);
+      sessionStorage.removeItem(STORE.pkce);
+    } catch (e) { /* storage unavailable */ }
     location.reload();
   }
 
@@ -2810,7 +2898,9 @@
     document.addEventListener("click", onClickDelete);
 
     $("export").addEventListener("click", () => downloadFile("zeekr-electric-" + todayIso() + ".csv", toCsv(state), "text/csv"));
-    $("dl-json").addEventListener("click", () => downloadFile("zeekr-data-" + todayIso() + ".json", JSON.stringify(serializeData(state), null, 2), "application/json"));
+    $("dl-json").addEventListener("click", () => {
+      downloadFile("zeekr-data-" + todayIso() + ".json", JSON.stringify(serializeData(state), null, 2), "application/json");
+    });
     $("dl-template").addEventListener("click", () => downloadFile("zeekr-import-template.csv", templateCsv(), "text/csv"));
     $("imp-file").addEventListener("change", onImportFileChosen);
     $("imp-go").addEventListener("click", onImportConfirmed);
@@ -2861,7 +2951,11 @@
   }
 
   // The pure functions are exposed for automated checks and for debugging in the console.
-  const api = { scheduleBalance, buildLoanModel, normalizeLoan, annuityPayment, addMonths, monthsBetween, parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, buildModel, buildMonths, toCsv };
+  const api = {
+    parseDate, parseNumber, parseCsv, parseImportText, planMerge, normalizeData, serializeData, toCsv,
+    buildModel, buildMonths,
+    normalizeLoan, buildLoanModel, scheduleBalance, annuityPayment, addMonths, monthsBetween,
+  };
   if (typeof window !== "undefined") window.ZeekrTracker = api;
   if (typeof document !== "undefined") start();
   else if (typeof globalThis !== "undefined") globalThis.ZeekrTracker = api;

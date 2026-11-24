@@ -29,9 +29,10 @@
   <!-- Fonts load without holding up the first screen; text shows in the system
        font for a moment and switches when they arrive (display=swap). -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="styles.css?v=3.18">
-  <script src="app.js?v=3.18" defer></script>
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap">
+  <link rel="stylesheet" href="styles.css?v=3.19">
+  <script src="app.js?v=3.19" defer></script>
 </head>
 <body>
 
@@ -74,28 +75,84 @@
 
   <!-- Floats at the bottom of a phone screen; a row under the header on a wide screen. -->
   <nav class="tabs" role="tablist" aria-label="ניווט">
-    <button role="tab" data-tab="overview" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>סקירה</button>
-    <button role="tab" data-tab="loan" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9.5c0-1.4-1.3-2-3-2s-3 .8-3 2 1.3 1.8 3 2.3 3 1 3 2.4-1.3 2-3 2-3-.7-3-2M12 6v1.5M12 16.5V18"/></svg>הלוואה</button>
-    <button role="tab" data-tab="add" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>הזנה</button>
-    <button role="tab" data-tab="history" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>היסטוריה</button>
-    <button role="tab" data-tab="settings" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>הגדרות</button>
+    <button role="tab" data-tab="overview" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+      </svg>סקירה</button>
+    <button role="tab" data-tab="loan" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M15 9.5c0-1.4-1.3-2-3-2s-3 .8-3 2 1.3 1.8 3 2.3 3 1 3 2.4-1.3 2-3 2-3-.7-3-2M12 6v1.5M12 16.5V18"/>
+      </svg>הלוואה</button>
+    <button role="tab" data-tab="add" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>הזנה</button>
+    <button role="tab" data-tab="history" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h10"/>
+      </svg>היסטוריה</button>
+    <button role="tab" data-tab="settings" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>
+      </svg>הגדרות</button>
   </nav>
 
   <!-- Shown by app.js only when the user has to sign in to OneDrive. -->
   <div class="panel" id="signin" hidden>
     <h2>התחברות ל‑OneDrive</h2>
-    <p class="sub" id="signin-text">הנתונים נשמרים בקובץ <span class="file-name">zeekr-data.json</span> בתיקיית האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
+    <p class="sub" id="signin-text">הנתונים נשמרים בקובץ <span class="file-name">zeekr-data.json</span> בתיקיית
+      האפליקציה ב‑OneDrive שלך. מתחברים פעם אחת בכל מכשיר.</p>
     <button class="btn" id="signin-btn" type="button">התחבר עם חשבון Microsoft</button>
   </div>
 
   <!-- ===== Overview ===== -->
   <section class="view" id="v-overview">
     <div class="kpis">
-      <div class="kpi"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span><div class="lab">צריכה ממוצעת</div><div class="num" id="k-eff">–</div><div class="unit">קוט״ש ל‑100 ק״מ</div></div>
-      <div class="kpi"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="lab">עלות לק״מ</div><div class="num" id="k-cpk">–</div><div class="unit">אגורות</div></div>
-      <div class="kpi"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M5 21h12M8 8h6M16 10h2a1 1 0 0 1 1 1v6a1.5 1.5 0 0 0 3 0V9l-3-3"/></svg></span><div class="lab">ק״מ לליטר בנזין</div><div class="num" id="k-kpl">–</div><div class="unit" id="k-kpl-unit">ק״מ</div></div>
-      <div class="kpi"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></span><div class="lab">עלות חודשית ממוצעת</div><div class="num" id="k-month">–</div><div class="unit">₪ ל‑30 יום</div></div>
-      <div class="kpi"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6 4 4 6-7"/></svg></span><div class="lab">חיסכון מול בנזין</div><div class="num" id="k-save">–</div><div class="unit">₪ עד היום</div></div>
+      <div class="kpi">
+        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
+        </svg></span>
+        <div class="lab">צריכה ממוצעת</div>
+        <div class="num" id="k-eff">–</div>
+        <div class="unit">קוט״ש ל‑100 ק״מ</div>
+      </div>
+      <div class="kpi">
+        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 2"/>
+        </svg></span>
+        <div class="lab">עלות לק״מ</div>
+        <div class="num" id="k-cpk">–</div>
+        <div class="unit">אגורות</div>
+      </div>
+      <div class="kpi">
+        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/>
+          <path d="M5 21h12M8 8h6M16 10h2a1 1 0 0 1 1 1v6a1.5 1.5 0 0 0 3 0V9l-3-3"/>
+        </svg></span>
+        <div class="lab">ק״מ לליטר בנזין</div>
+        <div class="num" id="k-kpl">–</div>
+        <div class="unit" id="k-kpl-unit">ק״מ</div>
+      </div>
+      <div class="kpi">
+        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="6" width="18" height="12" rx="2"/>
+          <path d="M3 10h18"/>
+        </svg></span>
+        <div class="lab">עלות חודשית ממוצעת</div>
+        <div class="num" id="k-month">–</div>
+        <div class="unit">₪ ל‑30 יום</div>
+      </div>
+      <div class="kpi">
+        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 17l6-6 4 4 6-7"/>
+        </svg></span>
+        <div class="lab">חיסכון מול בנזין</div>
+        <div class="num" id="k-save">–</div>
+        <div class="unit">₪ עד היום</div>
+      </div>
     </div>
 
     <div class="panel">
@@ -175,11 +232,28 @@
 
     <div class="loan-view" id="loan-view">
       <button type="button" class="btn ghost small" id="lv-today" aria-pressed="true">היום</button>
-      <label class="lv-select">לפי שנים<select id="lv-years"><option value="">בחר</option><option value="best" id="lv-best">הכי משתלם</option><option value="24">שנתיים</option><option value="36">3 שנים</option><option value="48">4 שנים</option><option value="60">5 שנים</option><option value="72">6 שנים</option><option value="84">7 שנים</option></select></label>
+      <label class="lv-select">לפי שנים<select id="lv-years">
+        <option value="">בחר</option>
+        <option value="best" id="lv-best">הכי משתלם</option>
+        <option value="24">שנתיים</option>
+        <option value="36">3 שנים</option>
+        <option value="48">4 שנים</option>
+        <option value="60">5 שנים</option>
+        <option value="72">6 שנים</option>
+        <option value="84">7 שנים</option>
+      </select></label>
     </div>
     <div class="loan-tiles" id="loan-tiles">
-      <div class="loan-tile"><div class="lab"><i class="loan-dot z"></i>Zeekr</div><div class="loan-tile-num" id="tile-z">–</div><div class="sub" id="tile-z-sub"></div></div>
-      <div class="loan-tile"><div class="lab"><i class="loan-dot a"></i>רכב יד שנייה</div><div class="loan-tile-num" id="tile-a">–</div><div class="sub" id="tile-a-sub"></div></div>
+      <div class="loan-tile">
+        <div class="lab"><i class="loan-dot z"></i>Zeekr</div>
+        <div class="loan-tile-num" id="tile-z">–</div>
+        <div class="sub" id="tile-z-sub"></div>
+      </div>
+      <div class="loan-tile">
+        <div class="lab"><i class="loan-dot a"></i>רכב יד שנייה</div>
+        <div class="loan-tile-num" id="tile-a">–</div>
+        <div class="sub" id="tile-a-sub"></div>
+      </div>
     </div>
 
     <div class="panel" id="loan-summary">
@@ -213,7 +287,8 @@
 
     <div class="panel" id="ef-panel">
       <h2>חשמל מול דלק</h2>
-      <p class="sub">כל חודש, כמה עלה החשמל בפועל, וכמה היו עולים אותם ק״מ בדלק ברכב שעושה <span id="ef-kml"></span> ק״מ לליטר, לפי מחיר הבנזין הרשמי באותו חודש. את הנתון משנים בעריכת נתוני הבסיס.</p>
+      <p class="sub">כל חודש, כמה עלה החשמל בפועל, וכמה היו עולים אותם ק״מ בדלק ברכב שעושה <span id="ef-kml"></span> ק״מ
+        לליטר, לפי מחיר הבנזין הרשמי באותו חודש. את הנתון משנים בעריכת נתוני הבסיס.</p>
       <dl class="facts" id="ef-total"></dl>
       <div class="scroll"><table id="ef-table"></table></div>
       <p class="sub">חודש עם כוכבית הוא חודש שהמדידות לא מכסות את כל ימיו.</p>
@@ -231,7 +306,8 @@
       <ul class="sub loan-how">
         <li>כל שקל שיצא מהכיס היה יכול להישאר בגמל, ולכן כל הוצאה גדלה בתשואה של הגמל עד החודש המוצג. ההפרש הוא התשואה שאבדה.</li>
         <li>עלות הזיקר היא ההוצאות עם התשואה שאבדה, ועוד יתרת ההלוואה והחוב העומד, פחות שווי הרכב.</li>
-        <li>עלות החלופה היא מחיר הרכב וטיפול יישור הקו ששולמו ביום הקנייה, ואחר כך דלק, טיפולים ואגרה, עם התשואה שאבדה, פחות שווי הרכב. ביטוח לא נכלל, לא בזיקר ולא בחלופה.</li>
+        <li>עלות החלופה היא מחיר הרכב וטיפול יישור הקו ששולמו ביום הקנייה, ואחר כך דלק, טיפולים ואגרה, עם התשואה שאבדה,
+          פחות שווי הרכב. ביטוח לא נכלל, לא בזיקר ולא בחלופה.</li>
         <li>החשמל נלקח מהמדידות באפליקציה. הדלק של החלופה הוא אותם ק״מ במחיר הבנזין הרשמי של כל חודש.</li>
         <li>חודש שאין לו מדידה מלאה מחושב לפי הממוצע, והוא מסומן בכוכבית בטבלה.</li>
         <li>ההחזר החודשי בכל לוח מחושב בשיטת שפיצר, או לפי החזר קבוע בתקופת גרייס. שינוי בפריים נכנס כלוח חדש מתאריך השינוי.</li>
@@ -267,7 +343,8 @@
             <label class="full">אחרי כמה חודשים אין החזר בפועל, ריק אם אין<input type="number" inputmode="numeric" step="1" id="l-stand-free"></label>
 
             <h3 class="full">הלוואה על חשבון הגמל</h3>
-            <p class="sub full">לוח לכל שינוי בריבית. בכל לוח, היתרה והחודשים שנשארו מאותו תאריך. בתקופת גרייס מזינים את ההחזר הקבוע, ומה שנשאר בסופה נשאר כחוב עד הלוח הבא.</p>
+            <p class="sub full">לוח לכל שינוי בריבית. בכל לוח, היתרה והחודשים שנשארו מאותו תאריך. בתקופת גרייס מזינים את
+              ההחזר הקבוע, ומה שנשאר בסופה נשאר כחוב עד הלוח הבא.</p>
             <div class="full" id="l-sched"></div>
             <button class="btn ghost small full" type="button" id="l-add-sched">הוסף לוח סילוקין</button>
 
@@ -300,7 +377,9 @@
 
     <div class="panel" id="p-reading">
       <h2>מדידה חודשית</h2>
-      <p class="sub">מה כתוב במונה של העמדה ובמד הק״מ של הרכב. אפשר למדוד יותר מפעם אחת בחודש: כל תאריך נשמר כמדידה נפרדת. המחיר לקוט״ש ממולא מהמדידה הקודמת. אם תשנה אותו, הוא יחול מהמדידה הזו והלאה, והתקופות הקודמות לא ישתנו.</p>
+      <p class="sub">מה כתוב במונה של העמדה ובמד הק״מ של הרכב. אפשר למדוד יותר מפעם אחת בחודש: כל תאריך נשמר כמדידה
+        נפרדת. המחיר לקוט״ש ממולא מהמדידה הקודמת. אם תשנה אותו, הוא יחול מהמדידה הזו והלאה, והתקופות הקודמות לא
+        ישתנו.</p>
       <form id="f-reading" novalidate>
         <label class="full">תאריך<input type="date" id="r-date" required></label>
         <label>קוט״ש במונה<input type="number" inputmode="decimal" step="any" id="r-meter" placeholder="למשל 4350.2" required></label>
@@ -315,7 +394,8 @@
 
     <div class="panel" id="p-public" hidden>
       <h2>טעינה ציבורית</h2>
-      <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית. הטעינה נשמרת כרשומה נפרדת ומתווספת לעלות של התקופה שבה היא נמצאת, בלי לשנות את המדידות הביתיות.</p>
+      <p class="sub">רשום כל טעינה מחוץ לבית מיד כשהיא קורית. הטעינה נשמרת כרשומה נפרדת ומתווספת לעלות של התקופה שבה היא
+        נמצאת, בלי לשנות את המדידות הביתיות.</p>
       <form id="f-public" novalidate>
         <label>תאריך<input type="date" id="p-date" required></label>
         <!-- Charging company: a list with each company's symbol (a native select cannot show images).
@@ -323,7 +403,8 @@
         <div class="field">
           <span class="field-label" id="p-provider-label">חברת הטעינה</span>
           <div class="picker">
-            <button type="button" class="picker-btn" id="p-provider-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="p-provider-label p-provider-btn"></button>
+            <button type="button" class="picker-btn" id="p-provider-btn" aria-haspopup="listbox" aria-expanded="false"
+                    aria-labelledby="p-provider-label p-provider-btn"></button>
             <ul class="picker-list" id="p-provider-list" role="listbox" aria-labelledby="p-provider-label" tabindex="-1" hidden></ul>
           </div>
           <input type="hidden" id="p-provider">
@@ -347,7 +428,8 @@
     </div>
     <div class="panel">
       <h2>חודשים</h2>
-      <p class="sub">כל תקופה מתחלקת בין החודשים לפי מספר הימים שלה בכל חודש, כך שמדידה ב‑2 או ב‑6 לחודש לא מעבירה צריכה לחודש הלא נכון, ושתי מדידות באותו חודש מצטרפות לאותה שורה. טעינה ציבורית נספרת בחודש שבו קרתה.</p>
+      <p class="sub">כל תקופה מתחלקת בין החודשים לפי מספר הימים שלה בכל חודש, כך שמדידה ב‑2 או ב‑6 לחודש לא מעבירה צריכה
+        לחודש הלא נכון, ושתי מדידות באותו חודש מצטרפות לאותה שורה. טעינה ציבורית נספרת בחודש שבו קרתה.</p>
       <div class="scroll"><table id="t-months"></table></div>
     </div>
     <div class="panel">
@@ -385,7 +467,8 @@
 
     <div class="panel">
       <h2>הנתונים שלך</h2>
-      <p class="sub">הכול נשמר בקובץ אחד, <span class="file-name">zeekr-data.json</span>, בתיקיית האפליקציה ב‑OneDrive שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
+      <p class="sub">הכול נשמר בקובץ אחד, <span class="file-name">zeekr-data.json</span>, בתיקיית האפליקציה ב‑OneDrive
+        שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
       <div class="row start">
         <button class="btn ghost" id="dl-json" type="button">הורד גיבוי (JSON)</button>
         <button class="btn ghost danger" id="signout" type="button">התנתק</button>
@@ -413,11 +496,13 @@
       <details class="guide">
         <summary>איך צריך להיראות קובץ ייבוא</summary>
         <div class="body">
-          <p class="sub">הייבוא מקבל שני סוגי קבצים: CSV (נוח לעריכה באקסל) ו‑JSON (הפורמט של קובץ הגיבוי). הדרך הקלה היא להוריד את קובץ ה‑CSV לדוגמה, למלא אותו באקסל ולשמור.</p>
+          <p class="sub">הייבוא מקבל שני סוגי קבצים: CSV (נוח לעריכה באקסל) ו‑JSON (הפורמט של קובץ הגיבוי). הדרך הקלה
+            היא להוריד את קובץ ה‑CSV לדוגמה, למלא אותו באקסל ולשמור.</p>
 
           <h3>איך הייבוא משתלב בנתונים הקיימים</h3>
           <ul>
-            <li>מדידה מזוהה לפי התאריך שלה. תאריך שכבר קיים: הערכים מהקובץ מחליפים את הקיימים. תאריך חדש: המדידה מתווספת, גם אם יש כבר מדידה אחרת באותו חודש.</li>
+            <li>מדידה מזוהה לפי התאריך שלה. תאריך שכבר קיים: הערכים מהקובץ מחליפים את הקיימים. תאריך חדש: המדידה
+              מתווספת, גם אם יש כבר מדידה אחרת באותו חודש.</li>
             <li>טעינה ציבורית מזוהה לפי המזהה שלה, ואם אין מזהה לפי השילוב של תאריך, קוט״ש ועלות. טעינה קיימת מתעדכנת (חברה, הערה), וכל טעינה אחרת מתווספת.</li>
             <li>טעינה ציבורית אף פעם לא משנה מדידה, ומדידה אף פעם לא משנה טעינה ציבורית.</li>
             <li>רשומות שלא מופיעות בקובץ נשארות כמו שהן.</li>
@@ -435,17 +520,20 @@
           <div class="scroll">
             <table>
               <tr><th>כותרת העמודה</th><th>שם חלופי</th><th>במדידה</th><th>בטעינה ציבורית</th><th>תוכן</th></tr>
-              <tr><td>סוג</td><td><code>type</code></td><td>מדידה</td><td>טעינה ציבורית</td><td>אם העמודה חסרה, שורה עם מונה היא מדידה ושורה עם קוט״ש היא טעינה ציבורית</td></tr>
+              <tr><td>סוג</td><td><code>type</code></td><td>מדידה</td><td>טעינה ציבורית</td><td>אם העמודה חסרה, שורה עם
+                מונה היא מדידה ושורה עם קוט״ש היא טעינה ציבורית</td></tr>
               <tr><td>תאריך</td><td><code>date</code></td><td>חובה</td><td>חובה</td><td>תאריך המדידה או הטעינה</td></tr>
               <tr><td>מונה קוט״ש</td><td><code>meter</code></td><td>חובה</td><td>ריק</td><td>המספר המצטבר שמופיע במונה העמדה הביתית</td></tr>
               <tr><td>קילומטראז׳</td><td><code>odo</code></td><td>רשות</td><td>ריק</td><td>מד הק״מ של הרכב. בלעדיו הצריכה מחושבת יחד עם התקופה הבאה</td></tr>
-              <tr><td>מחיר לקוט״ש</td><td><code>price</code></td><td>רשות</td><td>ריק</td><td>מחיר החשמל הביתי בשקלים לתקופה שמסתיימת במדידה. ריק: נלקח המחיר מהמדידה הקודמת</td></tr>
+              <tr><td>מחיר לקוט״ש</td><td><code>price</code></td><td>רשות</td><td>ריק</td><td>מחיר החשמל הביתי בשקלים
+                לתקופה שמסתיימת במדידה. ריק: נלקח המחיר מהמדידה הקודמת</td></tr>
               <tr><td>קוט״ש</td><td><code>kwh</code></td><td>ריק</td><td>חובה</td><td>כמה קוט״ש נטענו בטעינה</td></tr>
               <tr><td>עלות</td><td><code>cost</code></td><td>ריק</td><td>חובה</td><td>הסכום הכולל ששולם על הטעינה, בשקלים</td></tr>
               <tr><td>חברה</td><td><code>provider</code></td><td>ריק</td><td>רשות</td><td>החברה שבה בוצעה הטעינה, טקסט חופשי</td></tr>
               <tr><td>הערה</td><td><code>note</code></td><td>ריק</td><td>רשות</td><td>טקסט חופשי</td></tr>
               <tr><td>מזהה</td><td><code>id</code></td><td>ריק</td><td>רשות</td><td>מופיע בקובץ שהאפליקציה מייצאת. בשורה חדשה משאירים ריק</td></tr>
-              <tr><td>אחוז סוללה</td><td><code>soc</code></td><td>רשות</td><td>ריק</td><td>אחוז הסוללה שהרכב הראה בזמן המדידה, בין 0 ל‑100. ריק בקובץ ישן: האחוז השמור נשאר</td></tr>
+              <tr><td>אחוז סוללה</td><td><code>soc</code></td><td>רשות</td><td>ריק</td><td>אחוז הסוללה שהרכב הראה בזמן
+                המדידה, בין 0 ל‑100. ריק בקובץ ישן: האחוז השמור נשאר</td></tr>
             </table>
           </div>
           <p class="sub">דוגמה לקובץ CSV עם שתי מדידות באותו חודש וטעינה ציבורית אחת:</p>
@@ -457,8 +545,10 @@
           <h3>קובץ JSON</h3>
           <ul>
             <li>אובייקט אחד עם הרשימה <code>readings</code> (מדידות) והרשימה <code>public</code> (טעינות ציבוריות). מספיקה אחת מהן.</li>
-            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code>, <code>price</code> ו‑<code>soc</code> רשות (אפשר <code>null</code>).</li>
-            <li>בכל טעינה ציבורית: <code>date</code>, <code>kwh</code> ו‑<code>cost</code> חובה, <code>provider</code>, <code>note</code> ו‑<code>id</code> רשות.</li>
+            <li>בכל מדידה: <code>date</code> ו‑<code>meter</code> חובה, <code>odo</code>, <code>price</code>
+              ו‑<code>soc</code> רשות (אפשר <code>null</code>).</li>
+            <li>בכל טעינה ציבורית: <code>date</code>, <code>kwh</code> ו‑<code>cost</code> חובה, <code>provider</code>,
+              <code>note</code> ו‑<code>id</code> רשות.</li>
             <li><code>settings</code> רשות. אם הוא מופיע, הגדרות רכב הבנזין להשוואה מתעדכנות לפיו.</li>
             <li>שדות אחרים, כמו <code>app</code>, <code>version</code> ו‑<code>updated</code>, לא נדרשים בייבוא.</li>
           </ul>
@@ -480,7 +570,9 @@
     <!-- Trial copy only. -->
     <div class="panel" id="beta-panel" hidden>
       <h2>גרסת ניסוי</h2>
-      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות. אפשר להתחיל מעותק של הנתונים האמיתיים: ההעתקה רק קוראת את הקובץ האמיתי ולא משנה אותו.</p>
+      <p class="sub">זו גרסת הניסוי של הדף. היא עובדת מול קובץ נפרד, zeekr-test.json, באותה תיקייה ב‑OneDrive, כך שאפשר
+        להזין, לייבא ולמחוק בלי לגעת במדידות האמיתיות. אפשר להתחיל מעותק של הנתונים האמיתיים: ההעתקה רק קוראת את הקובץ
+        האמיתי ולא משנה אותו.</p>
       <div class="row start">
         <button class="btn ghost" id="test-copy" type="button">העתק את הנתונים האמיתיים לקובץ הבדיקות</button>
         <button class="btn ghost danger" id="test-reset" type="button">רוקן את קובץ הבדיקות</button>
