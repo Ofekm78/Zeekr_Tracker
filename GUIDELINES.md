@@ -165,6 +165,10 @@ test rules (see `tests/README.md`).
 
 ## 9. Versions, commits and pull requests
 
+- Only the release thread uploads to git. Every other thread sends its change
+  to the release thread, which pushes it, opens and merges the pull request
+  after Ofek approves, and reports the new version to the version-tracking
+  thread.
 - Every change goes to `beta/` first. It's copied to the root (the main page)
   only after Ofek approves, together with its tests.
 - Versions count in tenths: a major number and one digit after the point. Each
