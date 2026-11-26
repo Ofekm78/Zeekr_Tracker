@@ -2,6 +2,7 @@
   "description": "Maximum price of 95-octane petrol at self-service, incl. VAT, ILS per liter, by effective date. Source: Israel Ministry of Energy announcements on gov.il.",
   "prices": [
     { "from": "2025-10-01", "price": 7.23, "source": "https://www.gov.il/BlobFolder/news/fuel-october-2025/he/fuel-10-2025.pdf" },
+    { "from": "2025-11-01", "price": 7.86, "source": "estimate: average of Apr-Nov 2026 monthly prices, gap with no gov.il announcement" },
     { "from": "2026-04-01", "price": 8.05, "source": "https://www.gov.il/BlobFolder/news/fuel-april-2026/he/fuel-april-2026.pdf" },
     { "from": "2026-05-01", "price": 8.07, "source": "https://www.auto.co.il/articles/car-news/local-news/gas-prices-may-2026/" },
     { "from": "2026-06-01", "price": 7.8, "source": "https://www.gov.il/BlobFolder/news/fuel-june-2026/he/fuel-june-2026.pdf" },
