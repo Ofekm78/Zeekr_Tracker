@@ -41,10 +41,16 @@ function sampleData() {
   };
 }
 
-/** The two copies: where each is served, and the offline-cache key it reads first. */
+/**
+ * The three copies: where each is served, and the offline-cache key it reads first.
+ * `current` marks the copies on the newest code (main gets it when beta is promoted);
+ * `share` is the copy for other owners, without the loan tab.
+ */
 const COPIES = [
-  { name: "trial copy", url: "/beta/", dir: "beta", cacheKey: "zk-data-test", trial: true },
+  { name: "trial copy", url: "/beta/", dir: "beta", cacheKey: "zk-data-test", trial: true, current: true },
   { name: "main copy", url: "/", dir: ".", cacheKey: "zk-data", trial: false },
+  { name: "shared copy", url: "/share/", dir: "share", cacheKey: "zk-data-share", trial: false, current: true,
+    share: true },
 ];
 
 let server, browser, base;
@@ -88,6 +94,21 @@ async function openApp(copy, viewport) {
   return { page, errors };
 }
 
+/** Goes through the loan tab: every view fills the tiles, the chart and the sale table. */
+async function checkLoanViews(page) {
+  await page.click('.tabs button[data-tab="loan"]');
+  assert.equal(await page.isHidden("#loan-missing"), true, "no missing inputs");
+  for (const view of ["best", "24", "36", "84"]) {
+    await page.selectOption("#lv-years", view);
+    assert.match(await page.textContent("#tile-z"), /\d.*₪/, `Zeekr tile filled for view ${view}`);
+    assert.match(await page.textContent("#tile-a"), /\d.*₪/, `alternative tile filled for view ${view}`);
+  }
+  assert.match(await page.textContent("#lv-best"), /^הכי משתלם, \d+ חודשים$/);
+  await page.click("#lv-today");
+  assert.ok(await page.locator("#c-loan svg").count(), "loan chart drawn");
+  assert.ok((await page.locator("#sale-table tr").count()) > 2, "sale table filled");
+}
+
 for (const copy of COPIES) {
   test(`${copy.name}: version: header, Settings and the ?v= cache keys all match APP_VERSION`, async () => {
     const appJs = fs.readFileSync(path.join(ROOT, copy.dir, "app.js"), "utf8");
@@ -111,23 +132,15 @@ for (const copy of COPIES) {
       await page.click('.tabs button[data-tab="overview"]');
       assert.equal(await page.textContent("#k-eff"), "16.0", "average consumption");
       assert.equal(await page.textContent("#k-cpk"), "8.0", "cost per km in agorot");
-      if (copy.trial) {
+      if (copy.current) {
         // 6,000 km from 1 Jan to 1 Jul 2026, 181 days: 6000 / 181 * 30 = 994.48, shown as 994.
         assert.equal(await page.textContent("#k-kpm"), "994", "average km per 30 days");
       }
       assert.ok(await page.locator("#c-cost svg").count(), "monthly cost chart drawn");
 
-      await page.click('.tabs button[data-tab="loan"]');
-      assert.equal(await page.isHidden("#loan-missing"), true, "no missing inputs");
-      for (const view of ["best", "24", "36", "84"]) {
-        await page.selectOption("#lv-years", view);
-        assert.match(await page.textContent("#tile-z"), /\d.*₪/, `Zeekr tile filled for view ${view}`);
-        assert.match(await page.textContent("#tile-a"), /\d.*₪/, `alternative tile filled for view ${view}`);
-      }
-      assert.match(await page.textContent("#lv-best"), /^הכי משתלם, \d+ חודשים$/);
-      await page.click("#lv-today");
-      assert.ok(await page.locator("#c-loan svg").count(), "loan chart drawn");
-      assert.ok((await page.locator("#sale-table tr").count()) > 2, "sale table filled");
+      assert.equal(await page.isVisible('.tabs button[data-tab="loan"]'), !copy.share,
+        "loan tab hidden only on the shared copy");
+      if (!copy.share) await checkLoanViews(page);
 
       await page.click('.tabs button[data-tab="add"]');
       await page.fill("#r-meter", "2200");
@@ -140,13 +153,18 @@ for (const copy of COPIES) {
       await page.click('.tabs button[data-tab="settings"]');
       assert.equal(await page.isVisible("#beta-panel"), copy.trial, "trial tools only on the trial copy");
       assert.equal(await page.isVisible("#beta-banner"), copy.trial, "trial notice only on the trial copy");
+      if (copy.current) {
+        assert.equal(await page.inputValue("#s-city"), "beit-yehoshua", "default weather city");
+        assert.ok((await page.locator("#s-city option").count()) > 20, "city list filled");
+      }
+      assert.equal(await page.isVisible("#other-version"), !copy.share, "no link to other copies on the shared copy");
 
       assert.deepEqual(errors, [], `no script errors at ${viewport.width}px`);
       await page.context().close();
     }
   });
 
-  test(`${copy.name}: loan base data is locked until Edit, and Cancel locks it again`, async () => {
+  if (!copy.share) test(`${copy.name}: loan base data is locked until Edit, and Cancel locks it again`, async () => {
     const { page, errors } = await openApp(copy, { width: 400, height: 900 });
     await page.click('.tabs button[data-tab="loan"]');
     assert.equal(await page.isDisabled("#l-car"), true);

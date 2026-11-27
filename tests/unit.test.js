@@ -1,6 +1,7 @@
 /**
- * Calculation tests, run against both copies of the app: the trial copy
- * (beta/app.js) and the main one (app.js). Every test runs once per copy.
+ * Calculation tests, run against every copy of the app: the trial copy
+ * (beta/app.js), the main one (app.js) and the shared one (share/app.js).
+ * Every test runs once per copy.
  *
  * Every expected number below was worked out by hand (or with a separate
  * formula, noted next to it), not copied from the app's own output. All data
@@ -22,7 +23,7 @@ const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected
 const reading = (date, meter, odo, price = 0.5, soc = null) => ({ date, meter, odo, price, soc });
 const charge = (id, date, kwh, cost, provider = "", note = "") => ({ id, date, kwh, cost, provider, note });
 
-for (const copy of ["beta/app.js", "app.js"]) {
+for (const copy of ["beta/app.js", "app.js", "share/app.js"]) {
   describe(copy, () => {
     const Z = loadApp(copy);
 
@@ -51,6 +52,12 @@ for (const copy of ["beta/app.js", "app.js"]) {
       assert.ok(Z.normalizeReading({ date: "2026-01-01", meter: -1 }).error);
       assert.ok(Z.normalizeReading({ date: "2026-01-01", meter: 1, soc: "120%" }).error);
       assert.equal(Z.normalizeReading({ date: "2026-01-01", meter: 1, soc: "80%" }).value.soc, 80);
+    });
+
+    if (copy !== "app.js") test("settings: the weather city is kept when known, otherwise Beit Yehoshua", () => {
+      assert.equal(Z.normalizeData({ settings: { city: "haifa" } }).settings.city, "haifa");
+      assert.equal(Z.normalizeData({ settings: { city: "atlantis" } }).settings.city, "beit-yehoshua");
+      assert.equal(Z.normalizeData({}).settings.city, "beit-yehoshua");
     });
 
     test("CSV: quoted fields, doubled quotes and a semicolon delimiter", () => {

@@ -18,7 +18,8 @@ Change these only with Ofek's approval.
 - Plain HTML, CSS and JavaScript. No framework, no bundler, no build step and
   no runtime dependency.
 - The main page is `index.html`, `styles.css`, `app.js`, `sw.js` and
-  `manifest.webmanifest` at the root, with a full copy under `beta/`.
+  `manifest.webmanifest` at the root, with a full copy under `beta/` and one
+  for other owners under `share/` (no loan tab).
 - `app.js` is split into numbered feature sections, listed at the top of the
   file. New code goes in the section it belongs to. Add a new section only for
   a genuinely new feature, and update the list at the top.
@@ -170,7 +171,7 @@ test rules (see `tests/README.md`).
   after Ofek approves, and reports the new version to the version-tracking
   thread.
 - Every change goes to `beta/` first. It's copied to the root (the main page)
-  only after Ofek approves, together with its tests.
+  and to `share/` only after Ofek approves, together with its tests.
 - Versions count in tenths: a major number and one digit after the point. Each
   update adds one tenth (4.0, 4.1 … 4.9), and the update after x.9 moves to the
   next major number with .0 (4.9 is followed by 5.0, never 4.10). The beta

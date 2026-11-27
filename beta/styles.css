@@ -114,6 +114,7 @@ a { color: var(--accent); }
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 summary:focus-visible,
 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -208,7 +209,8 @@ form .full { grid-column: 1 / -1; }
 
 label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 0; }
 
-input {
+input,
+form select {
   font: inherit;
   font-size: 1.05rem;
   color: var(--fg);
@@ -338,7 +340,7 @@ h1, h2 { font-weight: 400; }
 .kpi .ic svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .kpi .num { color: var(--accent); font-weight: 400; }
 .btn { border-radius: 16px; }
-input { border-radius: 12px; }
+input, form select { border-radius: 12px; }
 
 /* Menu: floats above the bottom of a phone screen, within thumb reach. */
 .tabs {
