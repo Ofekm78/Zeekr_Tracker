@@ -20,7 +20,7 @@ The repository is public: no data files, readings or loan figures are committed.
 | `sw.js` | Keeps the page's own files on the phone so the installed app opens instantly. Never caches data. |
 | `manifest.webmanifest`, `icons/` | Installing to the home screen: name, icons, opening screen, charging-company symbols. |
 | `beta/` | The trial copy, same files plus its own name and cache. Works on a separate `zeekr-test.json`, so nothing there touches real data. Every change is made here first. |
-| `share/` | The copy shared with other Zeekr owners. Same `app.js` and `styles.css` as an approved beta, without the loan tab and without links to the other copies. Each user signs in with their own account, so their data is in their own OneDrive. |
+| `share/` | The demo copy shared with other Zeekr owners. Same `app.js` and `styles.css` as an approved beta, without the loan tab and without links to the other copies, plus an "about" tab. No sign-in: it opens with invented data from `share/demo-data.json`, and a visitor's changes stay in their own browser. |
 | `data/fuel-prices.json` | Official petrol prices by effective date, shared by all copies. |
 | `scripts/update_fuel_prices.py` | Reads the Ministry of Energy announcements and adds new prices to that file. |
 | `.github/workflows/fuel-prices.yml` | Runs the script every morning; a red run means this month's price was not found. |
@@ -41,5 +41,5 @@ The repository is public: no data files, readings or loan figures are committed.
 4. Add the version and what changed to `CHANGELOG.md`.
 
 Sign-in uses a Microsoft Entra app registration for personal accounts with the
-`Files.ReadWrite.AppFolder` scope. All three page addresses (root, `/beta/` and
-`/share/`) must stay registered as redirect URIs.
+`Files.ReadWrite.AppFolder` scope. Both signed-in page addresses (root and `/beta/`) must stay
+registered as redirect URIs. The shared demo copy does not sign in.

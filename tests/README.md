@@ -5,7 +5,7 @@ Two layers, both run by GitHub on every pull request (`.github/workflows/tests.y
 | File | What it checks | Time |
 |---|---|---|
 | `unit.test.js` | The calculations, run on every copy (`beta/app.js`, `app.js` and `share/app.js`): dates and numbers typed or imported, CSV import and merge, consumption and cost per period and per month, and the loan comparison (schedules, refinance, standing loan, depreciation, lost return, best sale month). | about 1 second |
-| `browser.test.js` | Opens every copy (`beta/`, the main page and `share/`) in Chromium with sample data, goes through every tab and the loan views (not on the shared copy, which has no loan tab) on a phone and a wide screen, and fails on any script error. Also checks that the version in the header matches the `?v=` cache keys. | about 1.5 minutes on GitHub (Chromium is installed each run) |
+| `browser.test.js` | Opens every copy (`beta/`, the main page and `share/`) in Chromium with sample data, goes through every tab and the loan views (not on the shared copy, which has no loan tab) on a phone and a wide screen, and fails on any script error. Also checks that the version in the header matches the `?v=` cache keys, and that the shared demo copy opens its invented year with no sign-in, saves only in the browser and resets. | about 1.5 minutes on GitHub (Chromium is installed each run) |
 
 All data in the tests is made up. The repository is public, so real readings or loan figures never go here.
 Every expected number was worked out by hand and is explained next to the test.

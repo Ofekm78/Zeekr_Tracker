@@ -1,0 +1,164 @@
+{
+ "app": "zeekr-tracker",
+ "version": 2,
+ "updated": "2026-11-27T00:00:00Z",
+ "demo": true,
+ "readings": [
+  {
+   "date": "2026-01-01",
+   "meter": 1382.47,
+   "odo": 31240,
+   "price": 0.5451,
+   "soc": 80
+  },
+  {
+   "date": "2026-02-01",
+   "meter": 1723.46,
+   "odo": 32893,
+   "price": 0.5451,
+   "soc": 71
+  },
+  {
+   "date": "2026-03-01",
+   "meter": 2047.59,
+   "odo": 34388,
+   "price": 0.5451,
+   "soc": 71
+  },
+  {
+   "date": "2026-04-01",
+   "meter": 2395.99,
+   "odo": 36139,
+   "price": 0.5451,
+   "soc": 84
+  },
+  {
+   "date": "2026-05-01",
+   "meter": 2722.85,
+   "odo": 38024,
+   "price": 0.5451,
+   "soc": 71
+  },
+  {
+   "date": "2026-06-01",
+   "meter": 3053.37,
+   "odo": 39777,
+   "price": 0.5451,
+   "soc": 84
+  },
+  {
+   "date": "2026-07-01",
+   "meter": 3420.69,
+   "odo": 41582,
+   "price": 0.5451,
+   "soc": 84
+  },
+  {
+   "date": "2026-08-01",
+   "meter": 3835.79,
+   "odo": 43642,
+   "price": 0.5451,
+   "soc": null
+  },
+  {
+   "date": "2026-09-01",
+   "meter": 4269.84,
+   "odo": 45868,
+   "price": 0.5451,
+   "soc": null
+  },
+  {
+   "date": "2026-10-01",
+   "meter": 4615.03,
+   "odo": 47541,
+   "price": 0.5451,
+   "soc": null
+  },
+  {
+   "date": "2026-11-01",
+   "meter": 4952.32,
+   "odo": 49411,
+   "price": 0.5451,
+   "soc": null
+  },
+  {
+   "date": "2026-12-01",
+   "meter": 5299.57,
+   "odo": 51133,
+   "price": 0.5451,
+   "soc": null
+  },
+  {
+   "date": "2026-12-31",
+   "meter": 5670.13,
+   "odo": 52925,
+   "price": 0.5451,
+   "soc": 71
+  }
+ ],
+ "public": [
+  {
+   "id": "demo000",
+   "date": "2026-01-10",
+   "kwh": 24,
+   "cost": 40.56,
+   "provider": "סונול",
+   "note": ""
+  },
+  {
+   "id": "demo030",
+   "date": "2026-04-12",
+   "kwh": 38,
+   "cost": 73.34,
+   "provider": "סונול",
+   "note": "טיול בפסח"
+  },
+  {
+   "id": "demo060",
+   "date": "2026-07-09",
+   "kwh": 41,
+   "cost": 75.85,
+   "provider": "סונול",
+   "note": "נסיעה לצפון"
+  },
+  {
+   "id": "demo070",
+   "date": "2026-08-08",
+   "kwh": 36,
+   "cost": 69.48,
+   "provider": "EV Edge",
+   "note": "אילת"
+  },
+  {
+   "id": "demo071",
+   "date": "2026-08-19",
+   "kwh": 22,
+   "cost": 37.18,
+   "provider": "EV Edge",
+   "note": "חזרה מאילת"
+  },
+  {
+   "id": "demo090",
+   "date": "2026-10-11",
+   "kwh": 21,
+   "cost": 38.85,
+   "provider": "פז",
+   "note": ""
+  },
+  {
+   "id": "demo110",
+   "date": "2026-12-10",
+   "kwh": 27,
+   "cost": 52.11,
+   "provider": "פז",
+   "note": ""
+  }
+ ],
+ "settings": {
+  "fuelPrice": 7.3,
+  "fuelL100": 7.5,
+  "batteryKwh": 66,
+  "city": "beit-yehoshua"
+ },
+ "loan": null
+}

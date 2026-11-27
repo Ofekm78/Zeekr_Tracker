@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "4.3";
+  const APP_VERSION = "4.4";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -98,6 +98,11 @@
    */
   const IS_BETA = location.pathname.includes("/beta/");
   const IS_SHARE = location.pathname.includes("/share/");
+  /**
+   * The shared copy is a demo: no sign-in, it opens with invented data from
+   * demo-data.json, and every change stays only in this browser.
+   */
+  const DEMO_URL = "demo-data.json";
   const REAL_FILE_NAME = "zeekr-data.json";
   const DATA_FILE_NAME = IS_BETA ? "zeekr-test.json" : REAL_FILE_NAME;
 
@@ -1160,6 +1165,11 @@
   function renderStatus() {
     const pill = $("status");
     const readings = state.readings;
+    if (IS_SHARE) {
+      pill.textContent = "גרסת הדגמה · נתונים בדויים";
+      pill.className = "pill";
+      return;
+    }
     if (!readings.length) {
       if (state.loading) pill.textContent = "טוען נתונים מ‑OneDrive…";
       else pill.textContent = state.connected ? "עוד אין מדידות. התחל בלשונית הזנה" : "לא מחובר ל‑OneDrive";
@@ -3023,7 +3033,7 @@
   async function mutate(change) {
     const draft = snapshot();
     change(draft);
-    await saveToOneDrive(draft);
+    if (!IS_SHARE) await saveToOneDrive(draft); // the demo keeps changes in this browser only
     applyData(draft);
     render();
   }
@@ -3090,8 +3100,12 @@
     renderReadingPreview();
   }
 
-  /** The shared copy has no loan tab: the loan comparison is built around one owner's finances. */
-  const TABS = ["overview", "loan", "add", "history", "settings"].filter((t) => !(IS_SHARE && t === "loan"));
+  /**
+   * The shared copy has no loan tab (the loan comparison is built around one owner's finances)
+   * and is the only one with the "about" tab.
+   */
+  const TABS = ["overview", "loan", "add", "history", "settings", "about"]
+    .filter((t) => (IS_SHARE ? t !== "loan" : t !== "about"));
 
   function showTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected",
@@ -3156,9 +3170,40 @@
     $("signout").addEventListener("click", signOut);
     $("test-reset").addEventListener("click", onClickResetTestData);
     $("test-copy").addEventListener("click", onClickCopyRealData);
+    if ($("demo-reset")) $("demo-reset").addEventListener("click", () => loadDemoData().then(render));
+    document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
+      showTab(b.dataset.go);
+      window.scrollTo(0, 0);
+    }));
 
     let resizeTimer;
     window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
+  }
+
+  /**
+   * Replaces the data with the demo year from demo-data.json (shared copy only).
+   * @throws when the file cannot be read
+   */
+  async function loadDemoData() {
+    const response = await fetch(DEMO_URL + "?v=" + APP_VERSION, { cache: "no-cache" });
+    if (!response.ok) throw new Error("demo " + response.status);
+    applyData(normalizeData(await response.json()));
+    showMessage("demo-msg", "נתוני ההדגמה נטענו מחדש.", true);
+  }
+
+  /** Opens the shared copy: the visitor's own changes if there are any, otherwise the demo year. */
+  async function startDemo() {
+    state.connected = true;
+    const cached = storage.get(STORE.cache);
+    if (cached) applyData(normalizeData(cached));
+    else {
+      try {
+        await loadDemoData();
+        showMessage("demo-msg", "");
+      } catch (err) { /* the page still opens, empty */ }
+    }
+    render();
+    loadFuelPrices(render);
   }
 
   async function start() {
@@ -3182,9 +3227,11 @@
     $("other-version").textContent = IS_BETA ? "לגרסה הראשית" : "לגרסת הניסוי";
     $("other-version").href = IS_BETA ? "../" : "beta/";
 
-    let tab = "overview";
+    // A first visit to the shared copy opens on the explanation of the app.
+    let tab = IS_SHARE ? "about" : "overview";
     try { tab = localStorage.getItem(STORE.tab) || tab; } catch (e) { /* storage unavailable */ }
     showTab(TABS.includes(tab) ? tab : "overview");
+    if (IS_SHARE) return startDemo();
 
     // Paint the last known data immediately; OneDrive replaces it when it answers.
     const cached = storage.get(STORE.cache);

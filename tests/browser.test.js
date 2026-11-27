@@ -90,7 +90,7 @@ async function openApp(copy, viewport) {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
   await page.goto(base + copy.url);
-  await page.waitForSelector("#k-eff");
+  await page.waitForSelector("#k-eff", { state: "attached" }); // the shared copy opens on its "about" tab
   return { page, errors };
 }
 
@@ -179,3 +179,44 @@ for (const copy of COPIES) {
     await page.context().close();
   });
 }
+
+test("shared copy: a first visit opens the demo year with no sign-in, saves only locally, and resets", async () => {
+  const context = await browser.newContext({ viewport: { width: 400, height: 900 }, serviceWorkers: "block" });
+  await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const graphCalls = [];
+  page.on("request", (r) => { if (r.url().includes("microsoft")) graphCalls.push(r.url()); });
+  await page.goto(base + "/share/");
+  await page.waitForFunction(() => document.getElementById("t-public").rows.length > 1);
+
+  assert.equal(await page.isVisible("#v-about"), true, "a first visit opens on the about tab");
+  assert.equal(await page.isVisible("#signin"), false, "no sign-in on the demo");
+  assert.equal(await page.isVisible("#demo-banner"), true, "demo notice shown");
+  assert.equal(await page.textContent("#status"), "גרסת הדגמה · נתונים בדויים");
+
+  await page.click('[data-go="overview"]');
+  assert.match(await page.textContent("#k-eff"), /^\d+\.\d$/, "consumption from the demo year");
+  await page.click('.tabs button[data-tab="history"]');
+  assert.equal(await page.locator("#t-readings tr").count(), 14, "header and 13 readings, 1.1.26 to 31.12.26");
+
+  const before = await page.locator("#t-public tr").count();
+  await page.click('.tabs button[data-tab="add"]');
+  await page.click("#seg-public");
+  await page.fill("#p-date", "2026-11-20");
+  await page.fill("#p-kwh", "30");
+  await page.fill("#p-cost", "55");
+  await page.click('#f-public button[type="submit"]');
+  assert.equal(await page.textContent("#p-msg"), "הטעינה נשמרה.", "saving works without OneDrive");
+  await page.reload();
+  await page.click('.tabs button[data-tab="history"]');
+  assert.equal(await page.locator("#t-public tr").count(), before + 1, "the change stays in this browser");
+
+  await page.click('.tabs button[data-tab="settings"]');
+  await page.click("#demo-reset");
+  await page.waitForFunction((n) => document.getElementById("t-public").rows.length === n, before);
+  assert.deepEqual(graphCalls, [], "nothing sent to Microsoft");
+  assert.deepEqual(errors, []);
+  await context.close();
+});
