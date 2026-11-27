@@ -31,8 +31,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" media="print" onload="this.media='all'"
         href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap">
-  <link rel="stylesheet" href="styles.css?v=4.0">
-  <script src="app.js?v=4.0" defer></script>
+  <link rel="stylesheet" href="styles.css?v=4.1">
+  <script src="app.js?v=4.1" defer></script>
 </head>
 <body>
 
@@ -64,8 +64,9 @@
   <header class="head">
     <img class="mark" src="icons/symbol-header.png?v=1" alt="" width="240" height="170">
     <div class="head-text">
-      <!-- The version comes from APP_VERSION in app.js, so it changes with every update. -->
-      <h1 lang="en">ZEEKR TRACKER <span class="head-version" id="head-version"></span></h1>
+      <!-- The version comes from APP_VERSION in app.js, so it changes with every update.
+           app.js adds TEST to the name on the trial copy. -->
+      <h1 lang="en"><span id="head-name">ZEEKR TRACKER</span> <span class="head-version" id="head-version"></span></h1>
       <span class="pill" id="status">טוען נתונים…</span>
     </div>
   </header>
@@ -152,14 +153,6 @@
         <div class="lab">ממוצע ק״מ בחודש</div>
         <div class="num" id="k-kpm">–</div>
         <div class="unit">ק״מ ל‑30 יום</div>
-      </div>
-      <div class="kpi">
-        <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 17l6-6 4 4 6-7"/>
-        </svg></span>
-        <div class="lab">חיסכון מול בנזין</div>
-        <div class="num" id="k-save">–</div>
-        <div class="unit">₪ עד היום</div>
       </div>
     </div>
 
