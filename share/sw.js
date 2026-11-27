@@ -21,7 +21,7 @@
 
   Raise CACHE_VERSION to throw away everything cached by an older version.
 */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE = "zk-share-v" + CACHE_VERSION;
 const SCOPE = self.registration.scope; // e.g. https://<site>/Zeekr_Tracker/share/
 const SKIP = "";

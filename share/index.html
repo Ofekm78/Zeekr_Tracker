@@ -31,8 +31,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" media="print" onload="this.media='all'"
         href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Secular+One&display=swap">
-  <link rel="stylesheet" href="styles.css?v=4.3">
-  <script src="app.js?v=4.3" defer></script>
+  <link rel="stylesheet" href="styles.css?v=4.4">
+  <script src="app.js?v=4.4" defer></script>
 </head>
 <body>
 
@@ -73,6 +73,9 @@
 
   <!-- Shown by app.js only on the trial copy of the page (address ends in /beta/). -->
   <div class="banner" id="beta-banner" hidden>גרסת ניסוי: הנתונים נשמרים בקובץ zeekr-test.json ולא משפיעים על המדידות האמיתיות.</div>
+  <!-- The shared copy is a demo with invented data; nothing is sent anywhere. -->
+  <div class="banner" id="demo-banner">גרסת הדגמה: כל הנתונים כאן בדויים, שנה שלמה של 2026. אפשר לנסות להזין ולמחוק,
+    והשינויים נשמרים רק במכשיר שלך.</div>
 
   <!-- Floats at the bottom of a phone screen; a row under the header on a wide screen. -->
   <nav class="tabs" role="tablist" aria-label="ניווט">
@@ -98,6 +101,11 @@
         <circle cx="12" cy="12" r="3"/>
         <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>
       </svg>הגדרות</button>
+    <button role="tab" data-tab="about" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 11v6M12 7.5v.5"/>
+      </svg>הסבר</button>
   </nav>
 
   <!-- Shown by app.js only when the user has to sign in to OneDrive. -->
@@ -477,13 +485,15 @@
     </div>
 
     <div class="panel">
-      <h2>הנתונים שלך</h2>
-      <p class="sub">הכול נשמר בקובץ אחד, <span class="file-name">zeekr-data.json</span>, בתיקיית האפליקציה ב‑OneDrive
-        שלך. הדף עצמו לא שומר נתונים בשום שרת אחר.</p>
+      <h2>נתוני ההדגמה</h2>
+      <p class="sub">בגרסת ההדגמה אין התחברות. הנתונים בדויים, וכל שינוי שתעשה נשמר רק בדפדפן הזה ולא נשלח לשום מקום.
+        אפשר לחזור לנתונים המקוריים בכל רגע.</p>
       <div class="row start">
-        <button class="btn ghost" id="dl-json" type="button">הורד גיבוי (JSON)</button>
-        <button class="btn ghost danger" id="signout" type="button">התנתק</button>
+        <button class="btn ghost" id="demo-reset" type="button">חזור לנתוני ההדגמה</button>
+        <button class="btn ghost" id="dl-json" type="button">הורד את הנתונים (JSON)</button>
+        <button class="btn ghost danger" id="signout" type="button" hidden>התנתק</button>
       </div>
+      <p class="msg" id="demo-msg" role="status"></p>
     </div>
 
     <div class="panel">
@@ -593,6 +603,69 @@
 
     <p class="sub">גרסה <span id="app-version"></span><span id="other-wrap"> · <a id="other-version" href="beta/">לגרסת הניסוי</a></span></p>
   </section>
+
+  <!-- ===== About: the idea and the features (shared demo copy only) ===== -->
+  <section class="view" id="v-about" hidden>
+    <div class="panel about">
+      <h2>מה זה ZEEKR TRACKER</h2>
+      <p>אפליקציה קטנה שבניתי לעצמי כדי לדעת כמה באמת עולה לי לנסוע ב‑Zeekr X. פעם בחודש אני מעתיק שני מספרים, מהמונה של
+        עמדת הטעינה בבית ומלוח השעונים ברכב. מוסיף כל טעינה ציבורית, והאפליקציה מחשבת את השאר.</p>
+      <p>מה שתראו כאן זו גרסת הדגמה עם נתונים בדויים לשנת 2026, דומים לנסיעה רגילה של כ‑1,800 ק״מ בחודש.
+        אפשר ללחוץ על הכול,
+        להזין מדידה ולמחוק. שום דבר לא נשמר אצלי, והשינויים נשארים רק במכשיר שלכם.</p>
+      <div class="row start"><button class="btn" type="button" data-go="overview">לסקירה עם נתוני ההדגמה</button></div>
+    </div>
+
+    <div class="panel about">
+      <h2>הרעיון</h2>
+      <ul>
+        <li>המחיר האמיתי לק״מ, כולל ההפסדים בטעינה, ולא רק מה שהרכב מציג.</li>
+        <li>טעינה ביתית וטעינה ציבורית ביחד, עם פירוק של כמה הלך על כל אחת.</li>
+        <li>השוואה הוגנת לרכב בנזין, לפי מחיר הבנזין הרשמי בכל חודש.</li>
+        <li>הנתונים שייכים לנהג: בגרסה המלאה הם נשמרים בקובץ אחד ב‑OneDrive של כל משתמש, ולא בשרת של מישהו אחר.</li>
+      </ul>
+    </div>
+
+    <div class="panel about">
+      <h2>מה יש באפליקציה</h2>
+      <h3>הזנה</h3>
+      <ul>
+        <li>מדידה חודשית: קריאת המונה של העמדה, הקילומטראז׳, המחיר לקוט״ש ואחוז הסוללה אם רוצים.</li>
+        <li>טעינה ציבורית: כמות, מחיר ובחירת החברה מתוך רשימה עם סמלים, כמו פז, סונול, אפקון ודלק.</li>
+        <li>בדיקה שהמספרים הגיוניים לפני השמירה, ותצוגה מקדימה של הצריכה והעלות מאז המדידה הקודמת.</li>
+      </ul>
+      <h3>סקירה</h3>
+      <ul>
+        <li>מדדים ראשיים: צריכה ממוצעת, עלות לק״מ, עלות חודשית, ממוצע ק״מ בחודש,
+          וכמה ק״מ נוסעים בכסף של ליטר בנזין.</li>
+        <li>גרפים לפי חודש: עלות החשמל, צריכה, עלות ל‑100 ק״מ, חיסכון מצטבר מול בנזין וחלק הטעינה הציבורית.</li>
+        <li>צריכה מול טמפרטורה לפי העיר שבוחרים, וצריכה לפי עונה.</li>
+        <li>תחזית שנתית, השוואה לבנזין וניתוח לפי חברת טעינה.</li>
+      </ul>
+      <h3>היסטוריה</h3>
+      <ul>
+        <li>סיכום שנתי, פירוט לפי חודשים ולפי תקופות בין מדידות.</li>
+        <li>טבלאות של כל המדידות והטעינות הציבוריות, עם מחיקה וייצוא לקובץ CSV.</li>
+      </ul>
+      <h3>הגדרות</h3>
+      <ul>
+        <li>רכב הבנזין להשוואה, קיבולת הסוללה ועיר למזג האוויר.</li>
+        <li>מחירי הבנזין הרשמיים מתעדכנים לבד בכל חודש.</li>
+        <li>גיבוי, וייבוא מקובץ CSV או מגיבוי קודם.</li>
+      </ul>
+      <h3>בכל מקום</h3>
+      <ul>
+        <li>מתקינים כאפליקציה במסך הבית של הטלפון, והיא נפתחת מהר גם בלי קליטה.</li>
+        <li>עובדת בטלפון ובמחשב, במצב בהיר ובמצב כהה.</li>
+      </ul>
+    </div>
+
+    <div class="panel about">
+      <h2>מה דעתכם?</h2>
+      <p>זו גרסה לבדיקה. אשמח לשמוע מה עובד, מה מבלבל ומה חסר לכם, ואם הייתם משתמשים בזה עם הנתונים שלכם.</p>
+    </div>
+  </section>
+
 </div>
 
 <!-- Keeps the app's own files on the phone so it opens instantly; see sw.js. -->
