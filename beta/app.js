@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "4.5";
+  const APP_VERSION = "4.6";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -3227,9 +3227,9 @@
     $("other-version").textContent = IS_BETA ? "לגרסה הראשית" : "לגרסת הניסוי";
     $("other-version").href = IS_BETA ? "../" : "beta/";
 
-    // A first visit to the shared copy opens on the explanation of the app.
+    // The shared copy always opens on the explanation of the app; the others reopen the last tab.
     let tab = IS_SHARE ? "about" : "overview";
-    try { tab = localStorage.getItem(STORE.tab) || tab; } catch (e) { /* storage unavailable */ }
+    if (!IS_SHARE) try { tab = localStorage.getItem(STORE.tab) || tab; } catch (e) { /* storage unavailable */ }
     showTab(TABS.includes(tab) ? tab : "overview");
     if (IS_SHARE) return startDemo();
 

@@ -210,6 +210,7 @@ test("shared copy: a first visit opens the demo year with no sign-in, saves only
   await page.click('#f-public button[type="submit"]');
   assert.equal(await page.textContent("#p-msg"), "הטעינה נשמרה.", "saving works without OneDrive");
   await page.reload();
+  assert.equal(await page.isVisible("#v-about"), true, "a return visit opens on the about tab too");
   await page.click('.tabs button[data-tab="history"]');
   assert.equal(await page.locator("#t-public tr").count(), before + 1, "the change stays in this browser");
 
