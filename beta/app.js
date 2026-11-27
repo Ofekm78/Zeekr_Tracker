@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "4.1";
+  const APP_VERSION = "4.2";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -85,14 +85,19 @@
   const REDIRECT_URI = location.origin + location.pathname.replace(/index\.html$/, "");
 
   /**
-   * Two copies of this app are published from one repository:
+   * Three copies of this app are published from one repository:
    *   /Zeekr_Tracker/        the main version, working on the real readings
    *   /Zeekr_Tracker/beta/   the trial version, where changes are tried first
+   *   /Zeekr_Tracker/share/  the copy shared with other Zeekr owners: no loan
+   *                          tab and no links to the other copies
    * The trial version always works against a separate file, so nothing done
-   * there can touch the real readings. Which copy this is follows from the
-   * address alone, so it cannot be switched by mistake.
+   * there can touch the real readings. Every user of the shared copy signs in
+   * with their own Microsoft account, so their file is in their own OneDrive.
+   * Which copy this is follows from the address alone, so it cannot be
+   * switched by mistake.
    */
   const IS_BETA = location.pathname.includes("/beta/");
+  const IS_SHARE = location.pathname.includes("/share/");
   const REAL_FILE_NAME = "zeekr-data.json";
   const DATA_FILE_NAME = IS_BETA ? "zeekr-test.json" : REAL_FILE_NAME;
 
@@ -105,13 +110,16 @@
    * localStorage / sessionStorage keys. Both copies share one origin, so they
    * share the sign-in token (sign in once) but keep separate offline caches.
    */
-  const CACHE_KEYS = { main: "zk-data", beta: "zk-data-test" };
-  const STORE = { token: "zk-tok", cache: IS_BETA ? CACHE_KEYS.beta : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce",
+  const CACHE_KEYS = { main: "zk-data", beta: "zk-data-test", share: "zk-data-share" };
+  const STORE = { token: "zk-tok",
+    cache: IS_BETA ? CACHE_KEYS.beta : IS_SHARE ? CACHE_KEYS.share : CACHE_KEYS.main, tab: "zk-tab", pkce: "zk-pkce",
     loanView: "zk-loan-view" };
 
   const DATA_FORMAT_VERSION = 2;
+  /** The city used until the user picks one: where the original car is kept. */
+  const DEFAULT_CITY = "beit-yehoshua";
   /** batteryKwh: Zeekr X, 66 kWh per the manufacturer's specification page. */
-  const DEFAULT_SETTINGS = { fuelPrice: 7.3, fuelL100: 7.5, batteryKwh: 66 };
+  const DEFAULT_SETTINGS = { fuelPrice: 7.3, fuelL100: 7.5, batteryKwh: 66, city: DEFAULT_CITY };
   /** Sanity limits for the battery capacity setting, in kWh. */
   const MIN_BATTERY_KWH = 10, MAX_BATTERY_KWH = 200;
   const MS_PER_DAY = 864e5;
@@ -123,23 +131,60 @@
   const CHART_MAX_POINTS = 14;
   /**
    * Daily mean temperature for the consumption-versus-temperature chart, from
-   * Open-Meteo (free, no key). Only these fixed coordinates are sent: Beit
-   * Yehoshua, where the car is kept. Kept in localStorage, never in the data file.
+   * Open-Meteo (free, no key). Only the coordinates of the city chosen in
+   * Settings are sent (see CITIES). Kept in localStorage, never in the data file.
    */
   const WEATHER = {
-    place: "בית יהושע",
-    latitude: 32.262,
-    longitude: 34.863,
     archiveUrl: "https://archive-api.open-meteo.com/v1/archive",
     recentUrl: "https://api.open-meteo.com/v1/forecast",
     storeKey: "zk-temp",
   };
   /**
+   * Cities for the weather data, with the coordinates sent to Open-Meteo.
+   * The chosen id is kept in the data file under settings.city.
+   */
+  const CITIES = [
+    { id: "ashdod", name: "אשדוד", lat: 31.80, lon: 34.65 },
+    { id: "ashkelon", name: "אשקלון", lat: 31.67, lon: 34.57 },
+    { id: "beer-sheva", name: "באר שבע", lat: 31.25, lon: 34.79 },
+    { id: "beit-yehoshua", name: "בית יהושע", lat: 32.262, lon: 34.863 },
+    { id: "beit-shemesh", name: "בית שמש", lat: 31.75, lon: 34.99 },
+    { id: "bnei-brak", name: "בני ברק", lat: 32.08, lon: 34.83 },
+    { id: "bat-yam", name: "בת ים", lat: 32.02, lon: 34.75 },
+    { id: "dimona", name: "דימונה", lat: 31.07, lon: 35.03 },
+    { id: "hod-hasharon", name: "הוד השרון", lat: 32.15, lon: 34.89 },
+    { id: "herzliya", name: "הרצליה", lat: 32.16, lon: 34.84 },
+    { id: "zichron-yaakov", name: "זכרון יעקב", lat: 32.57, lon: 34.95 },
+    { id: "hadera", name: "חדרה", lat: 32.43, lon: 34.92 },
+    { id: "holon", name: "חולון", lat: 32.01, lon: 34.78 },
+    { id: "haifa", name: "חיפה", lat: 32.79, lon: 34.99 },
+    { id: "tiberias", name: "טבריה", lat: 32.79, lon: 35.53 },
+    { id: "yokneam", name: "יקנעם", lat: 32.66, lon: 35.11 },
+    { id: "jerusalem", name: "ירושלים", lat: 31.77, lon: 35.21 },
+    { id: "kfar-saba", name: "כפר סבא", lat: 32.18, lon: 34.91 },
+    { id: "karmiel", name: "כרמיאל", lat: 32.92, lon: 35.30 },
+    { id: "modiin", name: "מודיעין", lat: 31.90, lon: 35.01 },
+    { id: "nahariya", name: "נהריה", lat: 33.01, lon: 35.10 },
+    { id: "nazareth", name: "נצרת", lat: 32.70, lon: 35.30 },
+    { id: "netanya", name: "נתניה", lat: 32.33, lon: 34.86 },
+    { id: "eilat", name: "אילת", lat: 29.56, lon: 34.95 },
+    { id: "afula", name: "עפולה", lat: 32.61, lon: 35.29 },
+    { id: "arad", name: "ערד", lat: 31.26, lon: 35.21 },
+    { id: "petah-tikva", name: "פתח תקווה", lat: 32.09, lon: 34.89 },
+    { id: "kiryat-shmona", name: "קריית שמונה", lat: 33.21, lon: 35.57 },
+    { id: "rosh-haayin", name: "ראש העין", lat: 32.10, lon: 34.96 },
+    { id: "rishon-lezion", name: "ראשון לציון", lat: 31.97, lon: 34.80 },
+    { id: "rehovot", name: "רחובות", lat: 31.89, lon: 34.81 },
+    { id: "ramat-gan", name: "רמת גן", lat: 32.07, lon: 34.82 },
+    { id: "raanana", name: "רעננה", lat: 32.18, lon: 34.87 },
+    { id: "tel-aviv", name: "תל אביב", lat: 32.08, lon: 34.78 },
+  ].sort((a, b) => a.name.localeCompare(b.name, "he"));
+  /**
    * Official petrol prices by effective date, kept up to date by a GitHub
    * workflow (see scripts/update_fuel_prices.py). Shared by both copies of
    * the app, so the trial copy reads it from the folder above.
    */
-  const FUEL_PRICES_URL = (IS_BETA ? "../" : "") + "data/fuel-prices.json";
+  const FUEL_PRICES_URL = (IS_BETA || IS_SHARE ? "../" : "") + "data/fuel-prices.json";
   const FUEL_PRICES_KEY = "zk-fuel-prices";
   /**
    * Charging companies offered in the public-charge form, in Ofek's order;
@@ -382,6 +427,7 @@
     if (rawSettings.fuelL100 > 0) settings.fuelL100 = Number(rawSettings.fuelL100);
     const battery = Number(rawSettings.batteryKwh);
     if (battery >= MIN_BATTERY_KWH && battery <= MAX_BATTERY_KWH) settings.batteryKwh = battery;
+    if (CITIES.some((c) => c.id === rawSettings.city)) settings.city = rawSettings.city;
     return {
       readings: [...readingsByDate.values()].sort(byDate),
       publicCharges: publicCharges.sort(byDate),
@@ -815,18 +861,25 @@
    * 7. Weather (daily mean temperature)
    * ==================================================================== */
 
+  /** The city chosen in Settings, or the default one. */
+  function currentCity() {
+    return CITIES.find((c) => c.id === state.settings.city) || CITIES.find((c) => c.id === DEFAULT_CITY);
+  }
+
   const weather = {
     /** { "YYYY-MM-DD": °C } */
     days: (storage.get(WEATHER.storeKey) || {}).days || {},
     fetchedOn: (storage.get(WEATHER.storeKey) || {}).fetchedOn || null,
     from: (storage.get(WEATHER.storeKey) || {}).from || null,
+    /** The city the stored temperatures belong to; older caches are of the default city. */
+    city: (storage.get(WEATHER.storeKey) || {}).city || DEFAULT_CITY,
     /** "idle" | "loading" | "failed" */
     status: "idle",
   };
 
   async function fetchDailyTemps(url, params) {
     const query = new URLSearchParams({
-      latitude: WEATHER.latitude, longitude: WEATHER.longitude,
+      latitude: currentCity().lat, longitude: currentCity().lon,
       daily: "temperature_2m_mean", timezone: "Asia/Jerusalem", ...params,
     });
     const response = await fetch(url + "?" + query);
@@ -847,6 +900,11 @@
   async function ensureWeather(from, onDone) {
     const today = todayIso();
     if (weather.status === "loading") return;
+    const city = currentCity().id;
+    if (weather.city !== city) {
+      // Another city was chosen: the stored temperatures are of the old one.
+      Object.assign(weather, { days: {}, fetchedOn: null, from: null, city });
+    }
     if (weather.fetchedOn === today && weather.from && weather.from <= from) return;
     weather.status = "loading";
     try {
@@ -860,7 +918,7 @@
       weather.fetchedOn = today;
       weather.from = from;
       weather.status = "idle";
-      storage.set(WEATHER.storeKey, { days, fetchedOn: today, from });
+      storage.set(WEATHER.storeKey, { days, fetchedOn: today, from, city });
       onDone();
     } catch (err) {
       weather.status = "failed";
@@ -1286,7 +1344,7 @@
     if (points.some((p) => p.temp != null)) {
       drawTempTimeChart(el, points);
       note.textContent = "נגיעה בחודש, או ריחוף במחשב, מראה את הצריכה ואת הטמפרטורה שלו. " +
-        "הטמפרטורה היא הממוצע היומי בבית יהושע, מהשירות Open‑Meteo.";
+        "הטמפרטורה היא הממוצע היומי ב" + currentCity().name + ", מהשירות Open‑Meteo. את העיר משנים בהגדרות.";
     } else if (weather.status === "loading") {
       el.innerHTML = '<p class="empty">טוען נתוני מזג אוויר…</p>';
       note.textContent = "";
@@ -1461,6 +1519,7 @@
     if (document.activeElement !== $("s-price")) $("s-price").value = state.settings.fuelPrice;
     if (document.activeElement !== $("s-l100")) $("s-l100").value = state.settings.fuelL100;
     if (document.activeElement !== $("s-battery")) $("s-battery").value = state.settings.batteryKwh;
+    if (document.activeElement !== $("s-city")) $("s-city").value = currentCity().id;
   }
 
   /* ======================================================================
@@ -1712,6 +1771,25 @@
     } catch (err) {
       showMessage("c-msg", describeSaveError(err));
     }
+  }
+
+  async function onSubmitCitySettings(event) {
+    event.preventDefault();
+    const city = $("s-city").value;
+    if (!state.connected) return showMessage("city-msg", NOT_CONNECTED);
+    if (!CITIES.some((c) => c.id === city)) return showMessage("city-msg", "צריך לבחור עיר מהרשימה.");
+    try {
+      await mutate((draft) => { draft.settings = { ...draft.settings, city }; });
+      showMessage("city-msg", "נשמר. נתוני מזג האוויר ייטענו מחדש לעיר הזו.", true);
+    } catch (err) {
+      showMessage("city-msg", describeSaveError(err));
+    }
+  }
+
+  /** Fills the city list in Settings once, in Hebrew alphabetical order. */
+  function fillCityOptions() {
+    $("s-city").innerHTML = CITIES.map((c) =>
+      '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.name) + "</option>").join("");
   }
 
   /**
@@ -3012,7 +3090,8 @@
     renderReadingPreview();
   }
 
-  const TABS = ["overview", "loan", "add", "history", "settings"];
+  /** The shared copy has no loan tab: the loan comparison is built around one owner's finances. */
+  const TABS = ["overview", "loan", "add", "history", "settings"].filter((t) => !(IS_SHARE && t === "loan"));
 
   function showTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected",
@@ -3042,6 +3121,7 @@
     $("f-public").addEventListener("submit", onSubmitPublicCharge);
     $("f-fuel").addEventListener("submit", onSubmitFuelSettings);
     $("f-car").addEventListener("submit", onSubmitCarSettings);
+    $("f-city").addEventListener("submit", onSubmitCitySettings);
     $("f-loan").addEventListener("submit", onSubmitLoan);
     $("f-loan").addEventListener("input", () => { $("f-loan").dataset.dirty = "1"; });
     $("lv-today").addEventListener("click", () => setLoanView(null));
@@ -3083,11 +3163,16 @@
 
   async function start() {
     state.loan = normalizeLoan(null);
+    fillCityOptions();
     bindEvents();
     $("r-date").value = $("p-date").value = todayIso();
     $("app-version").textContent = APP_VERSION;
     $("head-version").textContent = "v" + APP_VERSION;
     $("head-name").textContent = IS_BETA ? "ZEEKR TRACKER TEST" : "ZEEKR TRACKER";
+    if (IS_SHARE) {
+      $("tab-loan").hidden = true;
+      $("other-wrap").hidden = true;
+    }
     $("head-name").parentElement.classList.toggle("is-test", IS_BETA);
     for (const el of document.querySelectorAll(".file-name")) el.textContent = DATA_FILE_NAME;
     $("beta-banner").hidden = !IS_BETA;
