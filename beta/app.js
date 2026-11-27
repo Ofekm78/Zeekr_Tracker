@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "3.21";
+  const APP_VERSION = "4.0";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -1131,6 +1131,8 @@
     $("k-kpl").textContent = formatNumber(costPerKm ? currentFuelPrice / costPerKm : null, 0);
     $("k-kpl-unit").textContent = "בכסף של ליטר, " + formatNumber(currentFuelPrice, 2) + " ₪";
     $("k-month").textContent = formatNumber(spent.days ? (spent.total / spent.days) * 30 : null, 0);
+    // Km per 30 days over the spans with odometer data, like the monthly cost figure above.
+    $("k-kpm").textContent = formatNumber(driven.days ? (driven.km / driven.days) * 30 : null, 0);
     $("k-save").textContent = formatNumber(saved, 0);
 
     const shown = months.slice(-CHART_MAX_POINTS);

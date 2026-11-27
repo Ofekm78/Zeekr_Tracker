@@ -173,10 +173,14 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- 4. Overview ---------- */
 
-.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+@media (max-width: 960px) {
+  /* Six figures: two rows of three on a tablet or a narrow window. */
+  .kpis { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 620px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
-  /* Five figures: the last one gets the whole row instead of half of it. */
+  /* An odd count of figures: the last one gets the whole row instead of half of it. */
   .kpis > .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 

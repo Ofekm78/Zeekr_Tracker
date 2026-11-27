@@ -110,6 +110,10 @@ for (const copy of COPIES) {
       await page.click('.tabs button[data-tab="overview"]');
       assert.equal(await page.textContent("#k-eff"), "16.0", "average consumption");
       assert.equal(await page.textContent("#k-cpk"), "8.0", "cost per km in agorot");
+      if (copy.trial) {
+        // 6,000 km from 1 Jan to 1 Jul 2026, 181 days: 6000 / 181 * 30 = 994.48, shown as 994.
+        assert.equal(await page.textContent("#k-kpm"), "994", "average km per 30 days");
+      }
       assert.ok(await page.locator("#c-cost svg").count(), "monthly cost chart drawn");
 
       await page.click('.tabs button[data-tab="loan"]');
