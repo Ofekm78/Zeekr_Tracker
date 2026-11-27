@@ -121,6 +121,7 @@ for (const copy of COPIES) {
     assert.equal(await page.textContent("#app-version"), version);
     assert.equal(await page.title(), copy.trial ? "ZEEKR TRACKER TEST" : "ZEEKR TRACKER", "each copy keeps its own name");
     if (copy.trial) assert.equal(await page.textContent("#head-name"), "ZEEKR TRACKER TEST", "trial header says TEST");
+    if (copy.share) assert.equal(await page.textContent("#head-name"), "ZEEKR TRACKER SHARE TEST", "shared header says SHARE TEST");
     assert.deepEqual(errors, []);
     await page.context().close();
   });

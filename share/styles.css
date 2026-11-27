@@ -319,6 +319,8 @@ h1, h2 { font-weight: 400; }
 .head h1 { font-size: clamp(1.25rem, 5.4vw, 1.7rem); letter-spacing: 0.04em; white-space: nowrap; }
 /* The trial copy adds TEST to the name; a smaller size keeps it on one line on a phone. */
 .head h1.is-test { font-size: clamp(1rem, 4.2vw, 1.7rem); letter-spacing: 0.02em; }
+/* The shared copy's name is longer: let it break between words on a phone. */
+.head h1.is-share { white-space: normal; line-height: 1.2; }
 /* White symbol on a transparent background, so it takes the header's own colour. */
 .head .mark { height: 40px; width: auto; flex: none; align-self: center; }
 .head .pill { background: rgba(255, 255, 255, 0.18); color: #fff; }

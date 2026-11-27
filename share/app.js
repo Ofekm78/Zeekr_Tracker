@@ -65,7 +65,7 @@
    * ==================================================================== */
 
   /** Shown in Settings; bump together with the ?v= query in index.html. */
-  const APP_VERSION = "4.2";
+  const APP_VERSION = "4.3";
 
   /** Application (client) ID of the Microsoft Entra app registration. Public, not a secret. */
   const CLIENT_ID = "66f6788f-925a-471b-b98f-87d662b76db6";
@@ -3168,12 +3168,14 @@
     $("r-date").value = $("p-date").value = todayIso();
     $("app-version").textContent = APP_VERSION;
     $("head-version").textContent = "v" + APP_VERSION;
-    $("head-name").textContent = IS_BETA ? "ZEEKR TRACKER TEST" : "ZEEKR TRACKER";
+    const headName = IS_BETA ? "ZEEKR TRACKER TEST" : IS_SHARE ? "ZEEKR TRACKER SHARE TEST" : "ZEEKR TRACKER";
+    $("head-name").textContent = headName;
     if (IS_SHARE) {
       $("tab-loan").hidden = true;
       $("other-wrap").hidden = true;
     }
-    $("head-name").parentElement.classList.toggle("is-test", IS_BETA);
+    $("head-name").parentElement.classList.toggle("is-test", IS_BETA || IS_SHARE);
+    $("head-name").parentElement.classList.toggle("is-share", IS_SHARE);
     for (const el of document.querySelectorAll(".file-name")) el.textContent = DATA_FILE_NAME;
     $("beta-banner").hidden = !IS_BETA;
     $("beta-panel").hidden = !IS_BETA;
